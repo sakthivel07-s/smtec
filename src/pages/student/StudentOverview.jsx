@@ -77,7 +77,7 @@ export default function StudentOverview() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-blue-600 dark:bg-gray-900 p-6 rounded-3xl border border-blue-500 dark:border-gray-800 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
                     <div>
-                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-white mb-3">
+                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-yellow-300 mb-3">
                             <Award size={24} />
                         </div>
                         <p className="text-blue-100 dark:text-gray-400 text-sm font-medium uppercase tracking-wide">Total Points</p>
