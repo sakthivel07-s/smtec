@@ -64,8 +64,8 @@ export default function StudentOverview() {
             {/* Welcome Banner */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-3xl p-6 md:p-8 text-white shadow-xl relative overflow-hidden">
                 <div className="relative z-10">
-                    <h1 className="text-xl md:text-3xl font-bold mb-2">Welcome back, {studentData?.name || 'Student'}!</h1>
-                    <p className="text-blue-100 text-lg">Here is your academic performance overview.</p>
+                    <h1 className="text-xl md:text-3xl font-bold mb-2 text-white">Welcome back, {studentData?.name || 'Student'}!</h1>
+                    <p className="text-blue-100 text-lg text-white">Here is your academic performance overview.</p>
                 </div>
                 <div className="absolute right-0 bottom-0 opacity-10 transform translate-x-1/4 translate-y-1/4">
                     <GraduationCap size={200} />
@@ -75,13 +75,13 @@ export default function StudentOverview() {
 
             {/* Quick Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+                <div className="bg-blue-600 dark:bg-gray-900 p-6 rounded-3xl border border-blue-500 dark:border-gray-800 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
                     <div>
-                        <p className="text-gray-500 dark:text-gray-400 text-sm font-medium uppercase tracking-wide">Total Skill Points</p>
-                        <h3 className="text-4xl font-bold text-gray-900 dark:text-white mt-2">{stats.points}</h3>
-                    </div>
-                    <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
-                        <Award size={32} />
+                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-white mb-3">
+                            <Award size={24} />
+                        </div>
+                        <p className="text-blue-100 dark:text-gray-400 text-sm font-medium uppercase tracking-wide">Total Points</p>
+                        <h3 className="text-4xl font-bold text-white mt-1">{stats.points}</h3>
                     </div>
                 </div>
 

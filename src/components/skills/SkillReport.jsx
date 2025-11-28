@@ -127,7 +127,7 @@ export default function SkillReport({ regNo }) {
                         </div>
                         <span className="text-blue-100 font-medium">Total Points</span>
                     </div>
-                    <h3 className="text-4xl font-bold">{totalPoints}</h3>
+                    <h3 className="text-4xl font-bold text-white">{totalPoints}</h3>
                 </div>
 
                 <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm transition-colors">

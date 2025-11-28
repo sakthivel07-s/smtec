@@ -133,25 +133,25 @@ export default function Leaderboard() {
             {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-blue-600 to-indigo-600 p-8 rounded-3xl text-white shadow-xl shadow-blue-200 dark:shadow-none">
                 <div>
-                    <h1 className="text-3xl font-bold flex items-center gap-3">
+                    <h1 className="text-3xl font-bold flex items-center gap-3 text-white">
                         <Trophy className="text-yellow-300 fill-yellow-300" size={32} />
                         Skill Leaderboard
                     </h1>
-                    <p className="text-blue-100 mt-2 opacity-90">
+                    <p className="text-blue-100 mt-2 opacity-90 text-white">
                         Top achievers across departments and years
                     </p>
                 </div>
 
                 <div className="flex gap-4">
                     <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 text-center min-w-[100px]">
-                        <div className="text-2xl font-bold">{students.length}</div>
-                        <div className="text-xs text-blue-100 uppercase tracking-wider">Students</div>
+                        <div className="text-2xl font-bold text-white">{students.length}</div>
+                        <div className="text-xs text-blue-100 uppercase tracking-wider text-white">Students</div>
                     </div>
                     <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 text-center min-w-[100px]">
-                        <div className="text-2xl font-bold">
+                        <div className="text-2xl font-bold text-white">
                             {students.reduce((acc, s) => acc + s.points, 0).toLocaleString()}
                         </div>
-                        <div className="text-xs text-blue-100 uppercase tracking-wider">Total Points</div>
+                        <div className="text-xs text-blue-100 uppercase tracking-wider text-white">Total Points</div>
                     </div>
                 </div>
             </div>
