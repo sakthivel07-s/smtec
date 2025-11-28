@@ -1,0 +1,88 @@
+:root {
+  /* Google Material Color Palette */
+  --primary-color: #1a73e8;
+  /* Google Blue */
+  --primary-hover: #1557b0;
+  --secondary-color: #e8f0fe;
+  /* Light Blue Background */
+  --accent-color: #fbbc04;
+  /* Google Yellow (for highlights) */
+
+  /* Backgrounds */
+  --bg-primary: #f0f2f5;
+  /* Light Gray App Background */
+  --bg-secondary: #ffffff;
+  /* White Surface */
+  --bg-sidebar: #ffffff;
+
+  /* Text Colors */
+  --text-primary: #202124;
+  /* High Emphasis */
+  --text-secondary: #5f6368;
+  /* Medium Emphasis */
+  --text-disabled: #dadce0;
+  --text-on-primary: #ffffff;
+
+  /* Borders & Dividers */
+  --border-color: #dadce0;
+  --divider-color: #f1f3f4;
+
+  /* Status Colors */
+  --success: #1e8e3e;
+  --warning: #f9ab00;
+  --error: #d93025;
+  --info: #1a73e8;
+
+  /* Shadows (Material Elevation) */
+  --shadow-sm: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+  --shadow-md: 0 1px 3px 0 rgba(60, 64, 67, 0.3), 0 4px 8px 3px rgba(60, 64, 67, 0.15);
+  --shadow-lg: 0 4px 6px 0 rgba(60, 64, 67, 0.3), 0 8px 12px 6px rgba(60, 64, 67, 0.15);
+
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s ease;
+
+  /* Spacing */
+  --header-height: 64px;
+  --sidebar-width: 260px;
+}
+
+.dark {
+  /* Dark Mode Overrides */
+  --primary-color: #3b82f6;
+  /* Blue-500 */
+  --primary-hover: #2563eb;
+  /* Blue-600 */
+  --secondary-color: #1e293b;
+  /* Slate-800 */
+
+  --bg-primary: #030712;
+  /* Gray-950 */
+  --bg-secondary: #111827;
+  /* Gray-900 */
+  --bg-sidebar: #111827;
+  /* Gray-900 */
+
+  --text-primary: #f9fafb;
+  /* Gray-50 */
+  --text-secondary: #9ca3af;
+  /* Gray-400 */
+  --text-disabled: #4b5563;
+  /* Gray-600 */
+  --text-on-primary: #ffffff;
+
+  --border-color: #1f2937;
+  /* Gray-800 */
+  --divider-color: #374151;
+  /* Gray-700 */
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
