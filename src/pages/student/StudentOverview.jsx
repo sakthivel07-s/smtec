@@ -62,15 +62,22 @@ export default function StudentOverview() {
     return (
         <div className="space-y-8 font-sans">
             {/* Welcome Banner */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-3xl p-6 md:p-8 text-white shadow-xl relative overflow-hidden">
+            <div className="relative rounded-3xl p-6 md:p-8 text-white shadow-xl overflow-hidden min-h-[180px] flex flex-col justify-center">
+                {/* Background Image with Overlay */}
+                <div
+                    className="absolute inset-0 bg-cover bg-center z-0"
+                    style={{ backgroundImage: "url('https://www.mtec.ac.in/cs-content/themes/mtec/images/about_img.webp')" }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-900/90 to-blue-800/80 z-0 backdrop-blur-[2px]" />
+
                 <div className="relative z-10">
                     <h1 className="text-xl md:text-3xl font-bold mb-2 text-white">Welcome back, {studentData?.name || 'Student'}!</h1>
-                    <p className="text-blue-100 text-lg text-white">Here is your academic performance overview.</p>
+                    <p className="text-blue-100 text-lg text-white max-w-xl">Here is your academic performance overview.</p>
                 </div>
-                <div className="absolute right-0 bottom-0 opacity-10 transform translate-x-1/4 translate-y-1/4">
+
+                <div className="absolute right-0 bottom-0 opacity-10 transform translate-x-1/4 translate-y-1/4 z-0">
                     <GraduationCap size={200} />
                 </div>
-                <div className="absolute top-0 left-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
             </div>
 
             {/* Quick Stats Grid */}

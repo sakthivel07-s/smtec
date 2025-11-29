@@ -51,7 +51,11 @@ export default function Sidebar({ role, isOpen, onClose }) {
                 `}
             >
                 <div className="h-16 flex items-center justify-between px-6 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
-                    <h2 className="text-xl font-bold text-blue-600 dark:text-blue-400 tracking-tight">SMTEC</h2>
+                    <img 
+                        src="https://www.mtec.ac.in/cs-content/themes/mtec/images/logo_new.png" 
+                        alt="SMTEC Logo" 
+                        className="h-12 w-auto object-contain"
+                    />
                     {isMobile && (
                         <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
                             <X size={24} />
