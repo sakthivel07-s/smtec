@@ -38,7 +38,7 @@ export default function CustomDropdown({
     const getDisplayLabel = () => {
         if (!value) return placeholder;
         const selectedOption = options.find(opt =>
-            (typeof opt === 'object' ? opt.value : opt) === value
+            String(typeof opt === 'object' ? opt.value : opt) === String(value)
         );
         if (!selectedOption) return value; // Fallback
         return typeof selectedOption === 'object' ? selectedOption.label : selectedOption;
@@ -95,7 +95,7 @@ export default function CustomDropdown({
                             options.map((option, index) => {
                                 const optValue = typeof option === 'object' ? option.value : option;
                                 const optLabel = typeof option === 'object' ? option.label : option;
-                                const isSelected = optValue === value;
+                                const isSelected = String(optValue) === String(value);
 
                                 return (
                                     <button

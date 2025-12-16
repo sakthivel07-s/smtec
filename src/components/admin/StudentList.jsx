@@ -4,6 +4,8 @@ import { db } from '../../config/firebase';
 import { useAuth } from "../../contexts/AuthContext";
 import StudentForm from './StudentForm';
 import { Plus, Search, Filter, Trash2, Edit2, GraduationCap, ChevronRight, ArrowLeft, ChevronRight as ChevronIcon, Building2, Code, Globe, Cpu, Zap, Wrench, Hammer, Brain } from 'lucide-react';
+import { parseNaturalLanguageQuery, isAIConfigured } from '../../utils/aiService';
+import { Loader2, Sparkles } from 'lucide-react';
 
 export default function StudentList() {
     const { userDept } = useAuth();
@@ -11,12 +13,14 @@ export default function StudentList() {
     const [viewState, setViewState] = useState('departments');
     const [selectedDept, setSelectedDept] = useState(null);
     const [selectedYear, setSelectedYear] = useState(null);
+    const [isAIActive, setIsAIActive] = useState(false);
 
     // Data State
     const [students, setStudents] = useState([]);
     const [filteredStudents, setFilteredStudents] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [aiLoading, setAiLoading] = useState(false);
 
     // Modal State
     const [editingStudent, setEditingStudent] = useState(null);
@@ -49,6 +53,68 @@ export default function StudentList() {
         }
     }
 
+    // AI Search Handler
+    const handleAISearch = async () => {
+        if (!searchQuery.trim()) return;
+
+        if (!isAIConfigured()) {
+            alert("AI not configured. Add API Key to .env");
+            return;
+        }
+
+        setAiLoading(true);
+        try {
+            // 1. Get Filters from AI
+            const filters = await parseNaturalLanguageQuery(searchQuery);
+            console.log("AI Filters:", filters);
+
+            // 2. Build Query
+            let constraints = [where("role", "==", "student")];
+
+            if (filters.dept) {
+                // Handle 'All' or specific dept
+                if (['CSE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'AI&DS'].includes(filters.dept.toUpperCase())) {
+                    constraints.push(where("dept", "==", filters.dept.toUpperCase()));
+                }
+            } else if (userDept) {
+                constraints.push(where("dept", "==", userDept));
+            }
+
+            if (filters.year) constraints.push(where("year", "==", Number(filters.year)));
+
+            // Note: Cloud Firestore limits inequality queries. 
+            // We'll perform exact matches on DB and complex filtering (CGPA, Skills) on Client for "Power".
+
+            const q = query(collection(db, "users"), ...constraints);
+            const snapshot = await getDocs(q);
+            let results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            // 3. Advanced Client-side Filtering based on AI response
+            if (filters.minCgpa) {
+                results = results.filter(s => Number(s.cgpa) >= Number(filters.minCgpa));
+            }
+            if (filters.maxArrears !== undefined) {
+                results = results.filter(s => Number(s.historyOfArrears || 0) <= Number(filters.maxArrears));
+            }
+            // Simple skill name match if 'skills' array exists in document (depends on schema)
+            // or we might need to fetch sub-collections (too expensive for search). 
+            // Let's assume basic profile filtering for now as per "Ask Your Database" which implies querying the main table.
+
+            setStudents(results);
+            setFilteredStudents(results);
+            setViewState('students');
+            setIsAIActive(true);
+            setSelectedDept(filters.dept || 'Results');
+            setSelectedYear(filters.year || 'All');
+
+        } catch (error) {
+            console.error("AI Search Error:", error);
+            alert("AI could not understand the query. Try 'Show CSE students in year 3'");
+        } finally {
+            setAiLoading(false);
+        }
+    };
+
     // Navigation Handlers
     const handleDeptClick = (dept) => {
         setSelectedDept(dept);
@@ -65,6 +131,7 @@ export default function StudentList() {
         if (viewState === 'students') {
             setViewState('years');
             setSearchQuery('');
+            setIsAIActive(false); // Reset AI active state on back
             setStudents([]);
         } else if (viewState === 'years') {
             setViewState('departments');
@@ -72,8 +139,9 @@ export default function StudentList() {
         }
     };
 
-    // Search Effect
+    // Search Effect (Standard Search)
     useEffect(() => {
+        if (isAIActive) return; // Don't filter AI results with standard search
         if (!searchQuery.trim()) {
             setFilteredStudents(students);
             return;
@@ -85,13 +153,21 @@ export default function StudentList() {
             student.email?.toLowerCase().includes(queryLower)
         );
         setFilteredStudents(filtered);
-    }, [searchQuery, students]);
+    }, [searchQuery, students, isAIActive]);
 
     // Delete Logic
-    async function handleDelete(id) {
+    async function handleDelete(id, regNo) {
         if (confirm("Are you sure you want to delete this student?")) {
             try {
                 await deleteDoc(doc(db, "users", id));
+
+                // Sync Delete to Sheet
+                if (regNo) {
+                    import('../../utils/sheetSync.js').then(({ deleteStudentFromSheet }) => {
+                        deleteStudentFromSheet(regNo);
+                    });
+                }
+
                 if (selectedDept && selectedYear) {
                     fetchStudents(selectedDept, selectedYear);
                 }
@@ -150,22 +226,43 @@ export default function StudentList() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    {viewState === 'students' && (
-                        <div className="relative w-full md:w-64 animate-fade-in">
-                            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                    {/* AI / Standard Search Bar */}
+                    <div className="relative w-full md:w-80 animate-fade-in group">
+                        <div className={`absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl blur opacity-20 group-hover:opacity-40 transition-opacity ${isAIActive ? 'opacity-100' : ''}`}></div>
+                        <div className="relative flex items-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-purple-500/50">
+                            {aiLoading ? (
+                                <Loader2 size={18} className="absolute left-3 text-purple-500 animate-spin" />
+                            ) : (
+                                <Sparkles size={18} className={`absolute left-3 ${searchQuery.length > 5 ? 'text-purple-500' : 'text-gray-400'}`} />
+                            )}
                             <input
                                 type="text"
-                                placeholder="Search students..."
+                                placeholder="Ask AI: 'Year 3 CSE students with > 8 CGPA'"
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-medium text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder-gray-400"
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value);
+                                    if (e.target.value === '') {
+                                        setIsAIActive(false);
+                                        if (viewState === 'departments') setSelectedDept(null);
+                                    }
+                                }}
+                                onKeyDown={(e) => e.key === 'Enter' && handleAISearch()}
+                                className="w-full pl-10 pr-12 py-2.5 bg-transparent text-sm font-medium text-gray-900 dark:text-white outline-none placeholder-gray-400"
                             />
+                            <button
+                                onClick={handleAISearch}
+                                className="absolute right-1 p-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-purple-100 dark:hover:bg-purple-900/30 text-gray-500 hover:text-purple-600 rounded-lg transition-colors"
+                                title="Ask AI"
+                            >
+                                <Brain size={16} />
+                            </button>
                         </div>
-                    )}
+                    </div>
+
                     <button
                         onClick={() => setShowAddForm(true)}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-black dark:bg-white text-white dark:text-black rounded-xl text-sm font-bold hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors shadow-lg shadow-gray-200 dark:shadow-none"
+                        className="flex-shrink-0 flex items-center gap-2 px-5 py-2.5 bg-black dark:bg-white text-white dark:text-black rounded-xl text-sm font-bold hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors shadow-lg shadow-gray-200 dark:shadow-none"
                     >
                         <Plus size={18} />
                         <span className="hidden sm:inline">Add Student</span>
@@ -293,7 +390,7 @@ export default function StudentList() {
                                                             <Edit2 size={16} />
                                                         </button>
                                                         <button
-                                                            onClick={() => handleDelete(student.id)}
+                                                            onClick={() => handleDelete(student.id, student.regNo)}
                                                             className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                                         >
                                                             <Trash2 size={16} />

@@ -63,10 +63,20 @@ export default function SkillEntryForm() {
     // Auto-fetch student details when regNo changes
     useEffect(() => {
         const fetchStudent = async () => {
+            if (entryMode === 'select') return;
             if (formData.regNo.length >= 5) { // Only fetch if regNo is long enough
                 setFetchingStudent(true);
                 try {
-                    const q = query(collection(db, "users"), where("regNo", "==", formData.regNo), where("role", "==", "student"));
+                    const regNoStr = formData.regNo;
+                    const regNoNum = Number(regNoStr);
+                    const searchValues = [regNoStr];
+                    if (!isNaN(regNoNum)) searchValues.push(regNoNum);
+
+                    const q = query(
+                        collection(db, "users"),
+                        where("regNo", "in", searchValues),
+                        where("role", "==", "student")
+                    );
                     const querySnapshot = await getDocs(q);
 
                     if (!querySnapshot.empty) {
@@ -106,7 +116,7 @@ export default function SkillEntryForm() {
 
         const timeoutId = setTimeout(fetchStudent, 500); // Debounce
         return () => clearTimeout(timeoutId);
-    }, [formData.regNo, userDept]);
+    }, [formData.regNo, userDept, entryMode]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -205,7 +215,7 @@ export default function SkillEntryForm() {
                                     placeholder="Select Student"
                                     value={formData.regNo} // Control this with regNo if possible, or leave empty if just a trigger
                                     onChange={(e) => {
-                                        const student = studentList.find(s => s.regNo === e.target.value);
+                                        const student = studentList.find(s => String(s.regNo) === String(e.target.value));
                                         if (student) {
                                             setFormData(prev => ({
                                                 ...prev,

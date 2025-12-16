@@ -24,9 +24,11 @@ function handleRequest(e) {
         const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0]; // First sheet
         const action = e.parameter.action || "read";
 
+        // 1. READ (Pull to Website)
         if (action === "read") {
-            // READ DATA (Pull to Website)
             const data = sheet.getDataRange().getValues();
+            if (data.length === 0) return createJSON({ status: "success", data: [] });
+
             const headers = data[0];
             const rows = data.slice(1);
 
@@ -38,59 +40,96 @@ function handleRequest(e) {
                 return obj;
             });
 
-            return ContentService.createTextOutput(JSON.stringify({ status: "success", data: jsonData }))
-                .setMimeType(ContentService.MimeType.JSON);
+            return createJSON({ status: "success", data: jsonData });
         }
 
+        // 2. WRITE (Push from Website - Create/Update)
         else if (action === "write") {
-            // WRITE DATA (Push from Website)
             const requestData = JSON.parse(e.postData.contents);
-            const students = requestData.students; // Array of student objects
+            const students = requestData.students;
 
-            if (!students || students.length === 0) {
-                return createError("No student data provided");
-            }
+            if (!students || students.length === 0) return createError("No data");
 
-            // Get existing headers or create them if empty
+            // Setup Headers
             let headers = [];
             if (sheet.getLastRow() === 0) {
-                headers = ["regNo", "name", "email", "dept", "year", "cgpa"];
+                // Default headers for new sheet
+                headers = ["regNo", "name", "email", "dept", "year", "cgpa", "skillPoints"];
                 sheet.appendRow(headers);
             } else {
                 headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+
+                // Check for new columns in the first student object
+                const firstStudent = students[0];
+                const newColumns = [];
+                Object.keys(firstStudent).forEach(key => {
+                    // Ignore internal fields or large objects if any
+                    if (key !== 'id' && key !== 'createdAt' && key !== 'updatedAt' && !headers.includes(key)) {
+                        // For now, let's explicitly only add 'skillPoints' to be safe, 
+                        // or just add any scalar value.
+                        if (key === 'skillPoints') {
+                            newColumns.push(key);
+                        }
+                    }
+                });
+
+                if (newColumns.length > 0) {
+                    // Add new columns to the sheet
+                    const startCol = headers.length + 1;
+                    sheet.getRange(1, startCol, 1, newColumns.length).setValues([newColumns]);
+                    headers = [...headers, ...newColumns]; // Update local headers array
+                }
             }
 
-            // Map existing rows by regNo for updating
-            const existingData = sheet.getDataRange().getValues();
             const regNoIndex = headers.indexOf("regNo");
+            if (regNoIndex === -1) return createError("Missing 'regNo' column");
 
-            if (regNoIndex === -1) return createError("Sheet missing 'regNo' column");
+            const existingData = sheet.getDataRange().getValues();
 
-            // Update or Append
             students.forEach(student => {
                 let rowIndex = -1;
-
-                // Find existing row
+                // Find existing
                 for (let i = 1; i < existingData.length; i++) {
                     if (String(existingData[i][regNoIndex]) === String(student.regNo)) {
-                        rowIndex = i + 1; // 1-based index
+                        rowIndex = i + 1;
                         break;
                     }
                 }
 
-                const rowData = headers.map(header => student[header] || "");
+                const rowData = headers.map(header => {
+                    // Handle skillPoints specifically if needed, or just generic
+                    return student[header] !== undefined ? student[header] : "";
+                });
 
                 if (rowIndex > 0) {
-                    // Update existing row
                     sheet.getRange(rowIndex, 1, 1, rowData.length).setValues([rowData]);
                 } else {
-                    // Append new row
                     sheet.appendRow(rowData);
                 }
             });
 
-            return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "Data synced to sheet" }))
-                .setMimeType(ContentService.MimeType.JSON);
+            return createJSON({ status: "success", message: "Synced" });
+        }
+
+        // 3. DELETE (Delete from Website -> Delete in Sheet)
+        else if (action === "delete") {
+            const regNo = e.parameter.regNo;
+            if (!regNo) return createError("Missing regNo");
+
+            const data = sheet.getDataRange().getValues();
+            const headers = data[0];
+            const regNoIndex = headers.indexOf("regNo");
+
+            if (regNoIndex === -1) return createError("Missing 'regNo' column");
+
+            for (let i = 1; i < data.length; i++) {
+                if (String(data[i][regNoIndex]) === String(regNo)) {
+                    sheet.deleteRow(i + 1);
+                    return createJSON({ status: "success", message: "Deleted" });
+                }
+            }
+
+            return createJSON({ status: "success", message: "Not found, but considered deleted" });
         }
 
         return createError("Invalid action");
@@ -102,7 +141,10 @@ function handleRequest(e) {
     }
 }
 
+function createJSON(data) {
+    return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+}
+
 function createError(msg) {
-    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: msg }))
-        .setMimeType(ContentService.MimeType.JSON);
+    return createJSON({ status: "error", message: msg });
 }

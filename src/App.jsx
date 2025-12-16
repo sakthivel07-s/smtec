@@ -7,6 +7,7 @@ import PrivateRoute from "./components/PrivateRoute";
 import BatchManagement from './pages/admin/BatchManagement';
 import AlumniPage from './pages/admin/AlumniPage';
 
+
 function App() {
   return (
     <Router>

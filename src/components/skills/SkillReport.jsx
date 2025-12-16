@@ -14,9 +14,14 @@ export default function SkillReport({ regNo }) {
         const fetchSkills = async () => {
             setLoading(true);
             try {
+                const regNoStr = String(regNo);
+                const regNoNum = Number(regNo);
+                const searchValues = [regNoStr];
+                if (!isNaN(regNoNum)) searchValues.push(regNoNum);
+
                 const q = query(
                     collection(db, "student_skills"),
-                    where("regNo", "==", regNo)
+                    where("regNo", "in", searchValues)
                 );
                 const snapshot = await getDocs(q);
                 let skillList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));

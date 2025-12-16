@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Users, Upload, Settings, LogOut, X, Award, GraduationCap, Trophy, Gamepad2 } from "lucide-react";
+import { LayoutDashboard, Users, Upload, Settings, LogOut, X, Award, GraduationCap, Trophy, Gamepad2, BrainCircuit, MessageSquare } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useEffect, useState } from "react";
 
@@ -30,7 +30,10 @@ export default function Sidebar({ role, isOpen, onClose }) {
         { to: "/student", icon: <LayoutDashboard size={20} />, label: "Overview", end: true },
         { to: "/student/results", icon: <Users size={20} />, label: "My Results" },
         { to: "/student/skills", icon: <Award size={20} />, label: "Skill Report" },
+        { to: "/student/resume", icon: <BrainCircuit size={20} />, label: "AI Smart Resume" },
+        { to: "/student/interview", icon: <MessageSquare size={20} />, label: "AI Mock Interview" },
         { to: "/student/leaderboard", icon: <Trophy size={20} />, label: "Leaderboard" },
+        { to: "/student/profile", icon: <Users size={20} />, label: "My Profile" },
     ];
 
     return (
@@ -51,9 +54,9 @@ export default function Sidebar({ role, isOpen, onClose }) {
                 `}
             >
                 <div className="h-16 flex items-center justify-between px-6 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
-                    <img 
-                        src="https://www.mtec.ac.in/cs-content/themes/mtec/images/logo_new.png" 
-                        alt="SMTEC Logo" 
+                    <img
+                        src="https://www.mtec.ac.in/cs-content/themes/mtec/images/logo_new.png"
+                        alt="SMTEC Logo"
                         className="h-12 w-auto object-contain"
                     />
                     {isMobile && (

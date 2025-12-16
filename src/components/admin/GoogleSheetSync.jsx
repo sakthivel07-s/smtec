@@ -102,23 +102,84 @@ export default function GoogleSheetSync({ onSyncSuccess }) {
         }
 
         setSyncing(true);
-        if (!isAuto) setMessage('');
+        if (!isAuto) setMessage('Syncing...');
 
         try {
-            // Append action=read
+            // 1. Fetch Sheet Data
             const fetchUrl = `${url}?action=read&t=${new Date().getTime()}`;
             const response = await fetch(fetchUrl);
-
             const contentType = response.headers.get("content-type");
+
             if (contentType && contentType.includes("text/html")) {
-                throw new Error("Received HTML. Check 'Who has access' is set to 'Anyone' in script deployment.");
+                throw new Error("Received HTML. Check 'Who has access' is set to 'Anyone'.");
             }
 
             const result = await response.json();
 
+            if (result.status === 'error') throw new Error(result.message);
+
+            // If we reached here, the connection is valid!
+            if (!isConnected) {
+                await saveConfig(url);
+            }
+
+            const sheetStudents = result.data || [];
+
+            if (sheetStudents.length === 0) {
+                if (!isAuto) setMessage("Connected! Sheet is empty. Use 'Push to Sheet' to fill it.");
+                return;
+            }
+
+            // 2. Fetch Firestore Data
+            const querySnapshot = await getDocs(collection(db, "users"));
+            const dbStudents = [];
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                if (data.role === 'student') {
+                    dbStudents.push({ id: doc.id, ...data });
+                }
+            });
+
+            // 3. Sync Logic
+            const batch = writeBatch(db);
+            let changes = 0;
+            const sheetRegNos = new Set(sheetStudents.map(s => String(s.regNo)));
+
+            // A. Update/Create from Sheet -> DB
+            sheetStudents.forEach(s => {
+                if (!s.regNo) return;
+                const docRef = doc(db, "users", String(s.regNo));
+                const data = {
+                    ...s,
+                    role: 'student',
+                    updatedAt: new Date().toISOString()
+                };
+                // We use setDoc with merge to avoid overwriting existing fields not in sheet
+                batch.set(docRef, data, { merge: true });
+                changes++;
+            });
+
+            // B. Delete from DB if not in Sheet (The "Two-Way Delete" requirement)
+            dbStudents.forEach(dbS => {
+                if (dbS.regNo && !sheetRegNos.has(String(dbS.regNo))) {
+                    const docRef = doc(db, "users", dbS.id);
+                    batch.delete(docRef);
+                    changes++;
+                }
+            });
+
+            if (changes > 0) {
+                await batch.commit();
+                const msg = `Synced! Updated/Created: ${sheetStudents.length}, Deleted: ${dbStudents.length - sheetRegNos.size}`;
+                if (!isAuto) setMessage(msg);
+                setLastSyncTime(new Date().toLocaleTimeString());
+            } else {
+                if (!isAuto) setMessage("Already up to date.");
+            }
+
         } catch (error) {
             console.error("Pull error:", error);
-            if (!isAuto) setMessage("Connection Failed: " + error.message);
+            if (!isAuto) setMessage("Sync Failed: " + error.message);
         } finally {
             setSyncing(false);
         }
@@ -142,10 +203,14 @@ export default function GoogleSheetSync({ onSyncSuccess }) {
             // Fetch all students from Firestore
             const querySnapshot = await getDocs(collection(db, "users"));
             const students = [];
+            const studentMap = {};
+
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
                 if (data.role === 'student') {
-                    students.push(data);
+                    const s = { ...data, skillPoints: 0 }; // Default 0
+                    students.push(s);
+                    if (data.regNo) studentMap[data.regNo] = s;
                 }
             });
 
@@ -153,6 +218,15 @@ export default function GoogleSheetSync({ onSyncSuccess }) {
                 if (!isAuto) throw new Error("No students found in database to push.");
                 return;
             }
+
+            // Fetch Skills to calculate points
+            const skillsSnapshot = await getDocs(collection(db, "student_skills"));
+            skillsSnapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.regNo && studentMap[data.regNo]) {
+                    studentMap[data.regNo].skillPoints += Number(data.points) || 0;
+                }
+            });
 
             // Send to Web App
             // Using text/plain to avoid CORS preflight (OPTIONS) requests which often fail with GAS

@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Helper Functions ---
+
+    // Check if user is logged in (via Firebase Auth - Admins/HODs)
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if user is an Admin or HOD
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role in ['admin', 'hod']);
+    }
+
+    // --- Collection Rules ---
+
+    // Users Collection
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Student Skills Collection
+    match /student_skills/{skillId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Alumni Collection
+    match /alumni/{alumniId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Config Collection (For Google Sheet Sync, etc.)
+    match /config/{configId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+    
+    // Student Profiles Collection (Editable by students)
+    // NOTE: In a production app with real Firebase Auth, this should use request.auth.uid == studentId
+    match /student_profiles/{studentId} {
+      allow read, write: if true;
+    }
+
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -28,7 +28,12 @@ export default function StudentOverview() {
                         // 2. Fetch Skills Summary if regNo exists
                         if (data.regNo) {
                             const skillsRef = collection(db, "student_skills");
-                            const q = query(skillsRef, where("regNo", "==", data.regNo));
+                            const regNoStr = String(data.regNo);
+                            const regNoNum = Number(data.regNo);
+                            const searchValues = [regNoStr];
+                            if (!isNaN(regNoNum)) searchValues.push(regNoNum);
+
+                            const q = query(skillsRef, where("regNo", "in", searchValues));
                             const snapshot = await getDocs(q);
 
                             let totalPoints = 0;

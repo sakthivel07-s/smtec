@@ -30,6 +30,7 @@ export default function DashboardStats() {
                 const deptMap = {};
                 const yearMap = {};
                 const activeStudentRegNos = new Set();
+                const studentDetailsMap = {}; // New: Map to resolve Dept/Year from RegNo
 
                 usersSnapshot.forEach(doc => {
                     const data = doc.data();
@@ -44,7 +45,13 @@ export default function DashboardStats() {
                         const year = Number(data.year);
                         if (year >= 1 && year <= 4) {
                             activeStudents.push(data);
-                            if (data.regNo) activeStudentRegNos.add(data.regNo);
+                            if (data.regNo) {
+                                activeStudentRegNos.add(data.regNo);
+                                studentDetailsMap[data.regNo] = {
+                                    dept: studentDept || 'Unknown',
+                                    year: year
+                                };
+                            }
 
                             // Count Dept
                             const dept = studentDept || 'Unknown';
@@ -86,13 +93,14 @@ export default function DashboardStats() {
 
                 skillsSnapshot.forEach(doc => {
                     const data = doc.data();
-                    // FILTER: Only count if student is currently active (Year 1-4) AND matches HOD dept
-                    if (activeStudentRegNos.has(data.regNo)) {
-                        const dept = data.studentDept || 'Unknown';
-                        const year = data.year ? `Year ${data.year}` : 'Unknown';
+                    // LOOKUP: Use the map to get accurate Dept/Year for this skill entry
+                    const studentInfo = studentDetailsMap[data.regNo];
 
-                        // Double check dept match just in case, though regNo set should handle it
-                        if (userDept && dept !== userDept) return;
+                    if (studentInfo) {
+                        const dept = studentInfo.dept;
+                        const year = `Year ${studentInfo.year}`;
+
+                        // HOD Filter is already implicitly applied because studentDetailsMap only contains valid students
 
                         const points = Number(data.points) || 0;
                         skillMap[dept] = (skillMap[dept] || 0) + points;
