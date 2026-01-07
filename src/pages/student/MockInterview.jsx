@@ -18,6 +18,7 @@ export default function MockInterview() {
 
     // Feedback State
     const [feedback, setFeedback] = useState(null);
+    const [retryStatus, setRetryStatus] = useState('');
 
     const topics = [
         { category: "Languages", items: ["HTML/CSS", "JavaScript", "Python", "Java", "C++", "C#", "PHP", "Swift", "Kotlin", "Go", "Ruby", "SQL"] },
@@ -46,17 +47,19 @@ export default function MockInterview() {
         }
 
         setLoading(true);
+        setRetryStatus('Initializing AI...');
         try {
-            const result = await generateInterviewQuestion(selectedTopic, difficulty);
+            const result = await generateInterviewQuestion(selectedTopic, difficulty, (status) => setRetryStatus(status));
             setQuestion(result);
             setMode('interview');
             setUserAnswer('');
             setFeedback(null);
         } catch (error) {
             console.error(error);
-            alert("Failed to generate question");
+            alert(error.message || "Failed to generate question");
         } finally {
             setLoading(false);
+            setRetryStatus('');
         }
     };
 
@@ -72,14 +75,16 @@ export default function MockInterview() {
         }
 
         try {
-            const result = await evaluateInterviewAnswer(question, userAnswer, selectedTopic);
+            setRetryStatus('Analyzing response...');
+            const result = await evaluateInterviewAnswer(question, userAnswer, selectedTopic, (status) => setRetryStatus(status));
             setFeedback(result);
             setMode('feedback');
         } catch (error) {
             console.error(error);
-            alert("Failed to evaluate answer");
+            alert(error.message || "Failed to evaluate answer");
         } finally {
             setLoading(false);
+            setRetryStatus('');
         }
     };
 
@@ -157,7 +162,7 @@ export default function MockInterview() {
                         className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         {loading ? <Loader2 className="animate-spin" /> : <BookOpen size={20} />}
-                        Start Interview
+                        {loading && retryStatus ? retryStatus : 'Start Interview'}
                     </button>
                 </div>
             )}
@@ -189,7 +194,7 @@ export default function MockInterview() {
                             className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                             {loading ? <Loader2 className="animate-spin" /> : <Send size={20} />}
-                            Submit Answer
+                            {loading && retryStatus ? retryStatus : 'Submit Answer'}
                         </button>
                     </div>
                 </div>

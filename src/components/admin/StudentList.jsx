@@ -3,9 +3,9 @@ import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/fire
 import { db } from '../../config/firebase';
 import { useAuth } from "../../contexts/AuthContext";
 import StudentForm from './StudentForm';
-import { Plus, Search, Filter, Trash2, Edit2, GraduationCap, ChevronRight, ArrowLeft, ChevronRight as ChevronIcon, Building2, Code, Globe, Cpu, Zap, Wrench, Hammer, Brain } from 'lucide-react';
+import { Plus, Search, Filter, Trash2, Edit2, GraduationCap, ChevronRight, ArrowLeft, ChevronRight as ChevronIcon, Building2, Code, Globe, Cpu, Zap, Wrench, Hammer, Brain, X, Link as LinkIcon, ExternalLink, BadgeCheck, Book, Target, Sparkles, Loader2, MessageSquare, FolderOpen, Trophy, Github } from 'lucide-react';
 import { parseNaturalLanguageQuery, isAIConfigured } from '../../utils/aiService';
-import { Loader2, Sparkles } from 'lucide-react';
+import { getDoc } from 'firebase/firestore';
 
 export default function StudentList() {
     const { userDept } = useAuth();
@@ -25,6 +25,9 @@ export default function StudentList() {
     // Modal State
     const [editingStudent, setEditingStudent] = useState(null);
     const [showAddForm, setShowAddForm] = useState(false);
+    const [showDetailModal, setShowDetailModal] = useState(false);
+    const [viewingStudent, setViewingStudent] = useState(null);
+    const [isFetchingDetail, setIsFetchingDetail] = useState(false);
 
     const allDepartments = ["CSE", "ECE", "MECH", "CIVIL", "EEE", "IT", "AI&DS"];
     const departments = userDept ? [userDept] : allDepartments;
@@ -136,6 +139,26 @@ export default function StudentList() {
         } else if (viewState === 'years') {
             setViewState('departments');
             setSelectedDept(null);
+        }
+    };
+
+    const handleViewDetail = async (student) => {
+        setIsFetchingDetail(true);
+        try {
+            const profileRef = doc(db, "student_profiles", student.id);
+            const profileSnap = await getDoc(profileRef);
+            if (profileSnap.exists()) {
+                setViewingStudent({ ...student, ...profileSnap.data() });
+            } else {
+                setViewingStudent(student); // Fallback to basic user data
+            }
+            setShowDetailModal(true);
+        } catch (error) {
+            console.error("Error fetching detail:", error);
+            setViewingStudent(student);
+            setShowDetailModal(true);
+        } finally {
+            setIsFetchingDetail(false);
         }
     };
 
@@ -363,10 +386,14 @@ export default function StudentList() {
                                     </thead>
                                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                                         {filteredStudents.map(student => (
-                                            <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group">
+                                            <tr 
+                                                key={student.id} 
+                                                onClick={() => handleViewDetail(student)}
+                                                className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group cursor-pointer"
+                                            >
                                                 <td className="p-6">
                                                     <div>
-                                                        <div className="font-semibold text-gray-900 dark:text-white">{student.name}</div>
+                                                        <div className="font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 transition-colors">{student.name}</div>
                                                         <div className="text-sm text-gray-400">{student.regNo || student.email}</div>
                                                     </div>
                                                 </td>
@@ -384,13 +411,19 @@ export default function StudentList() {
                                                 <td className="p-6 text-right">
                                                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                         <button
-                                                            onClick={() => setEditingStudent(student)}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setEditingStudent(student);
+                                                            }}
                                                             className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                                                         >
                                                             <Edit2 size={16} />
                                                         </button>
                                                         <button
-                                                            onClick={() => handleDelete(student.id, student.regNo)}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDelete(student.id, student.regNo);
+                                                            }}
                                                             className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                                         >
                                                             <Trash2 size={16} />
@@ -406,6 +439,192 @@ export default function StudentList() {
                     </div>
                 )}
             </div>
+
+            {/* --- LOADING DETAIL OVERLAY --- */}
+            {isFetchingDetail && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-4">
+                        <Loader2 className="animate-spin text-blue-600" size={40} />
+                        <p className="text-sm font-bold text-gray-500">Fetching Student Profile...</p>
+                    </div>
+                </div>
+            )}
+
+            {/* --- STUDENT DETAIL MODAL --- */}
+            {showDetailModal && viewingStudent && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-10 animate-fade-in">
+                    <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => setShowDetailModal(false)}></div>
+                    
+                    <div className="relative bg-white dark:bg-gray-900 w-full max-w-5xl max-h-[90vh] rounded-[2rem] shadow-2xl overflow-hidden border border-white/20 dark:border-gray-800 flex flex-col md:flex-row animate-zoom-in">
+                        {/* Sidebar Detail (LHS) */}
+                        <div className="w-full md:w-80 bg-gray-50 dark:bg-gray-800/50 p-8 border-r border-gray-100 dark:border-gray-800 flex flex-col items-center text-center overflow-y-auto">
+                            <div className="relative mb-6">
+                                <div className="w-32 h-32 rounded-3xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white text-5xl font-black shadow-2xl">
+                                    {viewingStudent.name[0]}
+                                </div>
+                                {viewingStudent.githubAnalysis && (
+                                    <div className="absolute -bottom-2 -right-2 bg-white dark:bg-gray-900 p-2 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-800">
+                                        <Trophy size={20} className="text-yellow-500" />
+                                    </div>
+                                )}
+                            </div>
+                            
+                            <h2 className="text-2xl font-black text-gray-900 dark:text-white leading-tight mb-1">{viewingStudent.name}</h2>
+                            <p className="text-sm font-bold text-blue-600 dark:text-blue-400 mb-6">{viewingStudent.dept} | Year {viewingStudent.year}</p>
+                            
+                            <div className="w-full space-y-3 mb-8">
+                                <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 text-left">
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Registration No</p>
+                                    <p className="text-sm font-black text-gray-900 dark:text-white">{viewingStudent.regNo}</p>
+                                </div>
+                                {viewingStudent.githubAnalysis && (
+                                    <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 text-left">
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">AI Developer Score</p>
+                                        <div className="flex items-end gap-2">
+                                            <span className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">{viewingStudent.githubAnalysis.score}</span>
+                                            <span className="text-sm font-bold text-gray-400 mb-2">/ 100</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="w-full space-y-3">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-left px-2">Links & Socials</p>
+                                {viewingStudent.github && (
+                                    <a href={viewingStudent.github.startsWith('http') ? viewingStudent.github : `https://${viewingStudent.github}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-white dark:hover:bg-gray-900 transition-colors text-sm font-medium text-gray-600 dark:text-gray-300">
+                                        <div className="w-8 h-8 rounded-lg bg-gray-900 text-white flex items-center justify-center">
+                                            <Github size={16} />
+                                        </div>
+                                        GitHub Profile <ExternalLink size={14} className="ml-auto opacity-40" />
+                                    </a>
+                                )}
+                                {viewingStudent.portfolio && (
+                                    <a href={viewingStudent.portfolio.startsWith('http') ? viewingStudent.portfolio : `https://${viewingStudent.portfolio}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-white dark:hover:bg-gray-900 transition-colors text-sm font-medium text-gray-600 dark:text-gray-300">
+                                        <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                                            <LinkIcon size={16} />
+                                        </div>
+                                        Live Preview <ExternalLink size={14} className="ml-auto opacity-40" />
+                                    </a>
+                                )}
+                                {viewingStudent.linkedin && (
+                                    <a href={viewingStudent.linkedin.startsWith('http') ? viewingStudent.linkedin : `https://${viewingStudent.linkedin}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-white dark:hover:bg-gray-900 transition-colors text-sm font-medium text-gray-600 dark:text-gray-300">
+                                        <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center">
+                                            <BadgeCheck size={16} />
+                                        </div>
+                                        LinkedIn <ExternalLink size={14} className="ml-auto opacity-40" />
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Content Area (RHS) */}
+                        <div className="flex-1 overflow-y-auto p-6 md:p-10 bg-white dark:bg-gray-900">
+                            <div className="flex justify-between items-start mb-10">
+                                <div>
+                                    <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-[0.2em] mb-2">Student Profile Details</p>
+                                    <h3 className="text-3xl font-black text-gray-900 dark:text-white">
+                                        {viewingStudent.githubAnalysis?.title || 'Aspiring Professional'}
+                                    </h3>
+                                </div>
+                                <button 
+                                    onClick={() => setShowDetailModal(false)}
+                                    className="p-3 bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-gray-900 dark:hover:text-white rounded-2xl transition-all"
+                                >
+                                    <X size={24} />
+                                </button>
+                            </div>
+
+                            <div className="space-y-10">
+                                <section>
+                                    <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                                        <Sparkles size={18} className="text-yellow-500" /> About & Summary
+                                    </h4>
+                                    <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-lg bg-gray-50 dark:bg-gray-800/30 p-6 rounded-3xl border border-gray-100 dark:border-gray-800">
+                                        {viewingStudent.githubAnalysis?.summary || viewingStudent.about || viewingStudent.bio || "No summary provided."}
+                                    </p>
+                                </section>
+
+                                {viewingStudent.githubAnalysis && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        <section>
+                                            <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                                                <BadgeCheck size={18} className="text-green-500" /> Top Strengths
+                                            </h4>
+                                            <ul className="space-y-3">
+                                                {viewingStudent.githubAnalysis.strengths?.map((s, i) => (
+                                                    <li key={i} className="flex items-start gap-3 text-gray-600 dark:text-gray-400 font-medium">
+                                                        <div className="mt-1 w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
+                                                        {s}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </section>
+                                        <section>
+                                            <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                                                <Book size={18} className="text-blue-500" /> Verified Tech Stack
+                                            </h4>
+                                            <div className="flex flex-wrap gap-2">
+                                                {viewingStudent.githubAnalysis.techStack?.map((tech, i) => (
+                                                    <span key={i} className="px-4 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl text-xs font-bold border border-blue-100 dark:border-blue-800">
+                                                        {tech}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </section>
+                                    </div>
+                                )}
+
+                                {viewingStudent.githubAnalysis?.featuredProjects && (
+                                    <section>
+                                        <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                                            <FolderOpen size={18} className="text-indigo-500" /> Featured GitHub Projects
+                                        </h4>
+                                        <div className="grid grid-cols-1 gap-4">
+                                            {viewingStudent.githubAnalysis.featuredProjects.map((proj, i) => (
+                                                <div key={i} className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 hover:border-indigo-200 dark:hover:border-indigo-900 transition-all group">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <h5 className="font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 transition-colors">{proj.name}</h5>
+                                                    </div>
+                                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{proj.description}</p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {proj.highlights?.map((h, j) => (
+                                                            <span key={j} className="text-[10px] font-bold bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 px-2 py-1 rounded-lg border border-indigo-100 dark:border-indigo-800">
+                                                                {h}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </section>
+                                )}
+
+                                {viewingStudent.projects && (
+                                    <section>
+                                        <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                                            <Code size={18} className="text-purple-500" /> Featured Projects
+                                        </h4>
+                                        <div className="bg-gray-50 dark:bg-gray-800/30 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 whitespace-pre-wrap text-gray-600 dark:text-gray-400 leading-relaxed italic">
+                                            {viewingStudent.projects}
+                                        </div>
+                                    </section>
+                                )}
+
+                                {viewingStudent.experience && (
+                                    <section>
+                                        <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                                            <Building2 size={18} className="text-orange-500" /> Experience
+                                        </h4>
+                                        <div className="bg-gray-50 dark:bg-gray-800/30 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 whitespace-pre-wrap text-gray-600 dark:text-gray-400 leading-relaxed">
+                                            {viewingStudent.experience}
+                                        </div>
+                                    </section>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

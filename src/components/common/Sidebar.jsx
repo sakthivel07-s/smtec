@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Users, Upload, Settings, LogOut, X, Award, GraduationCap, Trophy, Gamepad2, BrainCircuit, MessageSquare } from "lucide-react";
+import { LayoutDashboard, Users, Upload, Settings, LogOut, X, Award, GraduationCap, Trophy, Gamepad2, BrainCircuit, MessageSquare, Github } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useEffect, useState } from "react";
 
@@ -21,6 +21,7 @@ export default function Sidebar({ role, isOpen, onClose }) {
     const links = (role === 'admin' || role === 'hod') ? [
         { to: "/admin", icon: <LayoutDashboard size={20} />, label: "Dashboard", end: true },
         { to: "/admin/students", icon: <Users size={20} />, label: "Students" },
+        { to: "/admin/github", icon: <Github size={20} />, label: "GitHub AI Rankings" },
         { to: "/admin/upload", icon: <Upload size={20} />, label: "Upload Data" },
         { to: "/admin/skills", icon: <Award size={20} />, label: "Skill Management" },
         { to: "/admin/batches", icon: <Settings size={20} />, label: "Batch Management" },
@@ -54,11 +55,15 @@ export default function Sidebar({ role, isOpen, onClose }) {
                 `}
             >
                 <div className="h-16 flex items-center justify-between px-6 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
-                    <img
-                        src="https://www.mtec.ac.in/cs-content/themes/mtec/images/logo_new.png"
-                        alt="SMTEC Logo"
-                        className="h-12 w-auto object-contain"
-                    />
+                    <div>
+                        <img
+                            src="https://www.mtec.ac.in/cs-content/themes/mtec/images/logo_new.png"
+                            alt="SMTEC Logo"
+                            className="h-8 w-auto object-contain mb-1"
+                        />
+                        <p className="text-xs font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">TalentScout</p>
+                        <p className="text-[8px] font-medium text-gray-500 dark:text-gray-400 leading-tight">Standard of Excellence</p>
+                    </div>
                     {isMobile && (
                         <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
                             <X size={24} />

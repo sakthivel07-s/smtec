@@ -76,8 +76,8 @@ export default function Login() {
                         <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner">
                             <GraduationCap size={32} className="text-white" />
                         </div>
-                        <h1 className="text-3xl font-bold text-white tracking-tight">SMTEC</h1>
-                        <p className="text-blue-100 mt-2 font-medium">College Management System</p>
+                        <h1 className="text-3xl font-bold text-white tracking-tight">TalentScout</h1>
+                        <p className="text-blue-100 mt-2 font-medium">Standard of Excellence</p>
                     </div>
                     {/* Decorative Circles */}
                     <div className="absolute top-0 left-0 w-32 h-32 bg-white/10 rounded-full -translate-x-1/2 -translate-y-1/2 blur-2xl" />

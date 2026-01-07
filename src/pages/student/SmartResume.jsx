@@ -14,6 +14,7 @@ export default function SmartResume() {
     const [skills, setSkills] = useState([]);
     const [aiData, setAiData] = useState(null);
     const [error, setError] = useState('');
+    const [retryStatus, setRetryStatus] = useState('');
 
     // Resume Input State
     const [formData, setFormData] = useState({
@@ -99,15 +100,17 @@ export default function SmartResume() {
 
         setGenerating(true);
         setError('');
+        setRetryStatus('Analyzing profile...');
         try {
             // Include formData in the AI generation call
-            const result = await generateResumeContent(profile, skills, formData);
+            const result = await generateResumeContent(profile, skills, formData, (status) => setRetryStatus(status));
             setAiData(result);
         } catch (err) {
             console.error(err);
-            setError("AI Generation Failed. Please try again later.");
+            setError(err.message || "AI Generation Failed. Please try again later.");
         } finally {
             setGenerating(false);
+            setRetryStatus('');
         }
     };
 
@@ -133,13 +136,11 @@ export default function SmartResume() {
             formData.portfolio ? `Portfolio: ${formData.portfolio}` : ''
         ].filter(Boolean).join(" | ");
 
-        const contactLines = splitText(contactLine, 170);
-        pdf.text(contactLines, 20, y);
-        y += (contactLines.length * 5) + 6;
-
+        pdf.text(contactLine, 20, y);
+        y += 6;
         pdf.text(`${profile.dept} | Year ${profile.year} | CGPA: ${profile.cgpa}`, 20, y);
-        y += 10;
 
+        y += 10;
         pdf.setLineWidth(0.5);
         pdf.line(20, y, 190, y);
         y += 10;
@@ -219,24 +220,17 @@ export default function SmartResume() {
             aiData.enhancedProjects.forEach(proj => {
                 if (y > 270) { pdf.addPage(); y = 20; }
 
-                // Project Title
                 pdf.setFontSize(11);
                 pdf.setFont("helvetica", "bold");
                 pdf.text(proj.title, 20, y);
-                y += 5;
 
-                // Tech Stack (New Line)
                 if (proj.techStack) {
                     pdf.setFontSize(10);
                     pdf.setFont("helvetica", "italic");
-                    pdf.setTextColor(80); // Dark Gray
-                    // Wrap tech stack if it's too long
-                    const techLines = splitText(`Tech Stack: ${proj.techStack}`, 170);
-                    pdf.text(techLines, 20, y);
-                    pdf.setTextColor(0); // Reset to Black
-                    y += (techLines.length * 5);
+                    pdf.text(`(${proj.techStack})`, 20 + (pdf.getStringUnitWidth(proj.title) * 11 / pdf.internal.scaleFactor) + 2, y);
                 }
 
+                y += 5;
                 pdf.setFontSize(10);
                 pdf.setFont("helvetica", "normal");
                 proj.points.forEach(point => {
@@ -350,7 +344,7 @@ export default function SmartResume() {
                                 className="w-full btn-primary flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 border-none shadow-lg shadow-purple-200 dark:shadow-none py-3 rounded-xl mt-4 text-white font-bold transition-transform active:scale-95"
                             >
                                 {generating ? <Loader2 className="animate-spin" size={20} /> : <BrainCircuit size={20} />}
-                                {aiData ? "Regenerate Resume" : "Generate Resume"}
+                                {generating && retryStatus ? retryStatus : (aiData ? "Regenerate Resume" : "Generate Resume")}
                             </button>
                         </div>
                     </div>
@@ -442,7 +436,7 @@ export default function SmartResume() {
 
                             {/* Analysis Section (Roadmap) */}
                             <div className="bg-gradient-to-br from-gray-900 to-black rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
-                                <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-white">
+                                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
                                     <Target className="text-purple-400" /> AI Career Roadmap & Feedback
                                 </h2>
                                 <div className="space-y-4">
@@ -452,8 +446,8 @@ export default function SmartResume() {
                                                 {i + 1}
                                             </div>
                                             <div>
-                                                <h3 className="font-bold text-sm text-white">{step.step}</h3>
-                                                <p className="text-xs text-gray-300 mt-1">{step.description}</p>
+                                                <h3 className="font-bold text-sm">{step.step}</h3>
+                                                <p className="text-xs text-gray-400 mt-1">{step.description}</p>
                                             </div>
                                         </div>
                                     ))}

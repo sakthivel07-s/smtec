@@ -76,8 +76,8 @@ export default function StudentOverview() {
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-900/90 to-blue-800/80 z-0 backdrop-blur-[2px]" />
 
                 <div className="relative z-10">
-                    <h1 className="text-xl md:text-3xl font-bold mb-2 text-white">Welcome back, {studentData?.name || 'Student'}!</h1>
-                    <p className="text-blue-100 text-lg text-white max-w-xl">Here is your academic performance overview.</p>
+                    <h1 className="text-xl md:text-3xl font-bold mb-2 text-white">Welcome back, {studentData?.name || 'Talent'}!</h1>
+                    <p className="text-blue-100 text-lg text-white max-w-xl">TalentScout | Your professional excellence starts here.</p>
                 </div>
 
                 <div className="absolute right-0 bottom-0 opacity-10 transform translate-x-1/4 translate-y-1/4 z-0">

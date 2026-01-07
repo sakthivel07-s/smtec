@@ -1,19 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { db } from '../../config/firebase';
-import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
-import { User, Mail, Phone, Link, Briefcase, Code, Award, Save, Loader2, CheckCircle, ExternalLink, Sparkles, X } from 'lucide-react';
-import { enhanceProfessionalSummary } from '../../utils/aiService';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { User, Mail, Phone, Link, Briefcase, Code, Award, Save, Loader2, CheckCircle, ExternalLink, Sparkles, X, Github, RefreshCw, Zap } from 'lucide-react';
+import { enhanceProfessionalSummary, evaluateGitHubPortfolio } from '../../utils/aiService';
 
 export default function StudentProfile() {
     const { currentUser } = useAuth();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [successMsg, setSuccessMsg] = useState('');
-
+    
     // AI State
     const [enhancingSummary, setEnhancingSummary] = useState(false);
     const [summarySuggestions, setSummarySuggestions] = useState(null);
+    const [analyzingGithub, setAnalyzingGithub] = useState(false);
+    const [retryStatus, setRetryStatus] = useState('');
 
     // Profile State
     const [profile, setProfile] = useState({
@@ -31,7 +33,8 @@ export default function StudentProfile() {
         experience: '', // Stored as text for now, can be structured later
         projects: '',
         certifications: '',
-        customSkills: ''
+        customSkills: '',
+        githubAnalysis: null // Stores AI evaluation of GitHub
     });
 
     useEffect(() => {
@@ -74,7 +77,8 @@ export default function StudentProfile() {
                 experience: profileData.experience || '',
                 projects: profileData.projects || '',
                 certifications: profileData.certifications || '',
-                customSkills: profileData.customSkills || ''
+                customSkills: profileData.customSkills || '',
+                githubAnalysis: profileData.githubAnalysis || null
             }));
         } catch (error) {
             console.error("Error fetching profile:", error);
@@ -83,16 +87,74 @@ export default function StudentProfile() {
         }
     };
 
+    const handleSyncGithub = async () => {
+        if (!profile.github) {
+            setSuccessMsg("Please enter your GitHub URL first!");
+            setTimeout(() => setSuccessMsg(''), 3000);
+            return;
+        }
+
+        setAnalyzingGithub(true);
+        setRetryStatus('Fetching GitHub Data...');
+        try {
+            // Extract username from URL
+            const username = profile.github.split('/').pop().replace(/\/$/, '');
+            
+            // 1. Fetch repos from GitHub API
+            const response = await fetch(`https://api.github.com/users/${username}/repos?sort=updated&per_page=30`);
+            if (!response.ok) throw new Error("Could not find GitHub user");
+            const repos = await response.ok ? await response.json() : [];
+
+            if (repos.length === 0) {
+                setSuccessMsg("No public repositories found for this user.");
+                setAnalyzingGithub(false);
+                setRetryStatus('');
+                return;
+            }
+
+            setRetryStatus('Analyzing via AI...');
+            // 2. AI Evaluation
+            const evaluation = await evaluateGitHubPortfolio(username, repos, (status) => setRetryStatus(status));
+            
+            setProfile(prev => ({ ...prev, githubAnalysis: evaluation }));
+            
+            // AUTO-SAVE key results to Firestore so Admin can see them immediately
+            const profileRef = doc(db, "student_profiles", currentUser.uid);
+            await setDoc(profileRef, {
+                githubAnalysis: evaluation,
+                github: profile.github,
+                name: profile.name,
+                regNo: profile.regNo,
+                dept: profile.dept,
+                year: profile.year,
+                lastUpdated: new Date().toISOString()
+            }, { merge: true });
+
+            setSuccessMsg(`GitHub Analyzed & Saved! Score: ${evaluation.score}/100`);
+            setTimeout(() => setSuccessMsg(''), 3000);
+            
+        } catch (error) {
+            console.error("GitHub Sync Error:", error);
+            setSuccessMsg(error.message || "Error analyzing GitHub.");
+        } finally {
+            setAnalyzingGithub(false);
+            setRetryStatus('');
+        }
+    };
+
     const handleEnhanceSummary = async () => {
         if (!profile.about || profile.about.length < 10) return;
         setEnhancingSummary(true);
+        setRetryStatus('Optimizing Summary...');
         try {
-            const result = await enhanceProfessionalSummary(profile.about);
+            const result = await enhanceProfessionalSummary(profile.about, (status) => setRetryStatus(status));
             setSummarySuggestions(result);
         } catch (error) {
             console.error(error);
+            setSuccessMsg("AI Optimization failed. Please try again later.");
         } finally {
             setEnhancingSummary(false);
+            setRetryStatus('');
         }
     };
 
@@ -110,13 +172,13 @@ export default function StudentProfile() {
         setSaving(true);
         setSuccessMsg('');
         try {
-            // Save ONLY editable fields to 'student_profiles' collection
-            // ID same as currentUser.uid for 1-to-1 mapping
             const profileRef = doc(db, "student_profiles", currentUser.uid);
 
             await setDoc(profileRef, {
-                regNo: profile.regNo, // Keep regNo for reference/searching
-                name: profile.name,   // Keep name for reference
+                regNo: profile.regNo,
+                name: profile.name,
+                dept: profile.dept,
+                year: profile.year,
                 phone: profile.phone,
                 linkedin: profile.linkedin,
                 portfolio: profile.portfolio,
@@ -127,6 +189,7 @@ export default function StudentProfile() {
                 projects: profile.projects,
                 certifications: profile.certifications,
                 customSkills: profile.customSkills,
+                githubAnalysis: profile.githubAnalysis, // Include AI Analysis
                 lastUpdated: new Date().toISOString()
             }, { merge: true });
 
@@ -227,7 +290,17 @@ export default function StudentProfile() {
                                 />
                             </div>
                             <div>
-                                <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">GitHub URL</label>
+                                <div className="flex justify-between items-center mb-1">
+                                    <label className="text-xs text-gray-500 dark:text-gray-400 block">GitHub URL</label>
+                                    <button
+                                        onClick={handleSyncGithub}
+                                        disabled={analyzingGithub || !profile.github}
+                                        className="text-[10px] font-bold flex items-center gap-1 bg-gray-900 text-white dark:bg-white dark:text-black px-2 py-0.5 rounded-full hover:opacity-80 transition-all disabled:opacity-50"
+                                    >
+                                        {analyzingGithub ? <RefreshCw size={10} className="animate-spin" /> : <RefreshCw size={10} />}
+                                        {analyzingGithub ? (retryStatus || 'Analyzing...') : 'Sync & Analyze'}
+                                    </button>
+                                </div>
                                 <input
                                     name="github"
                                     value={profile.github}
@@ -248,6 +321,53 @@ export default function StudentProfile() {
                             </div>
                         </div>
                     </div>
+
+                    {profile.githubAnalysis && (
+                        <div className="bg-gradient-to-br from-gray-900 to-black p-6 rounded-3xl border border-gray-800 shadow-xl text-white animate-fade-in">
+                            <div className="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 className="font-bold flex items-center gap-2 text-sm uppercase tracking-widest text-gray-400">
+                                        <Zap size={14} className="text-yellow-400" /> GitHub AI Insights
+                                    </h3>
+                                    <p className="text-lg font-bold mt-1 text-white">{profile.githubAnalysis.title}</p>
+                                </div>
+                                <div className="flex flex-col items-end text-right">
+                                    <span className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+                                        {profile.githubAnalysis.score}
+                                    </span>
+                                    <span className="text-[10px] uppercase font-bold text-gray-500 tracking-tighter">Dev Score</span>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 mb-4">
+                                {profile.githubAnalysis.techStack?.map((tech, i) => (
+                                    <span key={i} className="text-[10px] bg-gray-800 px-2 py-0.5 rounded-md border border-gray-700">
+                                        {tech}
+                                    </span>
+                                ))}
+                            </div>
+
+                            <div className="space-y-3">
+                                <div>
+                                    <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Key Strengths</p>
+                                    <ul className="space-y-1">
+                                        {profile.githubAnalysis.strengths?.map((s, i) => (
+                                            <li key={i} className="text-xs flex items-center gap-2">
+                                                <div className="w-1 h-1 bg-green-500 rounded-full"></div>
+                                                {s}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Verdict</p>
+                                    <p className="text-xs text-gray-300 italic leading-relaxed">
+                                        "{profile.githubAnalysis.summary}"
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Right Col: Details */}

@@ -10,7 +10,7 @@ import StudentProfile from "./StudentProfile";
 
 export default function StudentDashboard() {
     return (
-        <Layout title="Student Dashboard">
+        <Layout title="TalentScout Student Portal">
             <Routes>
                 <Route path="/" element={<StudentOverview />} />
                 <Route path="/results" element={<StudentResults />} />
