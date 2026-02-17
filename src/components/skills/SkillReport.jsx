@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { Calendar, Award, TrendingUp, List, AlertCircle, BarChart2, Clock } from 'lucide-react';
@@ -11,39 +11,93 @@ export default function SkillReport({ regNo }) {
     const [viewMode, setViewMode] = useState('activities'); // activities, day, week, month, semester, year
 
     useEffect(() => {
-        const fetchSkills = async () => {
-            setLoading(true);
-            try {
-                const regNoStr = String(regNo);
-                const regNoNum = Number(regNo);
-                const searchValues = [regNoStr];
-                if (!isNaN(regNoNum)) searchValues.push(regNoNum);
+        if (!regNo) return;
+        setLoading(true);
 
-                const q = query(
-                    collection(db, "student_skills"),
-                    where("regNo", "in", searchValues)
-                );
-                const snapshot = await getDocs(q);
-                let skillList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const regNoStr = String(regNo).trim();
+        const searchValues = [regNoStr];
+        const regNoNum = Number(regNo);
+        if (!isNaN(regNoNum)) searchValues.push(regNoNum);
 
-                // Sort by date descending (Newest first) for the list view
-                skillList.sort((a, b) => new Date(b.date) - new Date(a.date));
-                setSkills(skillList);
+        // 1. Live Listener for Manual Skills
+        const skillsQuery = query(
+            collection(db, "student_skills"),
+            where("regNo", "in", searchValues)
+        );
+        
+        // 2. Live Listener for User Profile (External Sheet Data)
+        const userDocRef = doc(db, "users", regNoStr);
 
-                // Calculate Total Points
-                const total = skillList.reduce((sum, skill) => sum + (Number(skill.points) || 0), 0);
-                setTotalPoints(total);
+        let manualSkills = [];
+        let externalActivities = [];
 
-            } catch (error) {
-                console.error("Error fetching skills:", error);
-            } finally {
-                setLoading(false);
-            }
+        const updateCombinedData = (manual, external) => {
+            const allActivities = [...manual, ...external];
+            allActivities.sort((a, b) => new Date(b.date) - new Date(a.date));
+            setSkills(allActivities);
+            const grandTotal = allActivities.reduce((sum, act) => sum + (Number(act.points) || 0), 0);
+            setTotalPoints(grandTotal);
+            setLoading(false);
         };
 
-        if (regNo) {
-            fetchSkills();
-        }
+        const unsubSkills = onSnapshot(skillsQuery, (snapshot) => {
+            manualSkills = snapshot.docs.map(doc => ({ 
+                id: doc.id, 
+                type: 'manual', 
+                ...doc.data() 
+            }));
+            updateCombinedData(manualSkills, externalActivities);
+        });
+
+        const unsubUser = onSnapshot(userDocRef, (docSnap) => {
+            externalActivities = [];
+            if (docSnap.exists()) {
+                const userData = docSnap.data();
+                const timestamp = userData.updatedAt || new Date().toISOString();
+
+                // PS Portal
+                if (userData.psPortalData && Array.isArray(userData.psPortalData)) {
+                    userData.psPortalData.forEach((lvl, idx) => {
+                        const pts = parseInt(lvl.points) || 0;
+                        if (pts > 0) {
+                            externalActivities.push({
+                                id: `psportal-${idx}-${regNoStr}`,
+                                skillName: lvl.label || `PS Portal Level ${idx + 1}`,
+                                points: pts,
+                                date: timestamp,
+                                year: userData.year || '1',
+                                semester: 'Verified',
+                                type: 'external'
+                            });
+                        }
+                    });
+                }
+
+                // Other Skills
+                if (userData.otherSkillsData && Array.isArray(userData.otherSkillsData)) {
+                    userData.otherSkillsData.forEach((skill, idx) => {
+                        const pts = parseInt(skill.points) || 0;
+                        if (pts > 0) {
+                            externalActivities.push({
+                                id: `otherskill-${idx}-${regNoStr}`,
+                                skillName: skill.name,
+                                points: pts,
+                                date: timestamp,
+                                year: userData.year || '1',
+                                semester: 'Verified',
+                                type: 'external'
+                            });
+                        }
+                    });
+                }
+            }
+            updateCombinedData(manualSkills, externalActivities);
+        });
+
+        return () => {
+            unsubSkills();
+            unsubUser();
+        };
     }, [regNo]);
 
     // Helper to get week number
@@ -248,25 +302,32 @@ export default function SkillReport({ regNo }) {
                         ) : (
                             <div className="space-y-4">
                                 {skills.map((skill) => (
-                                    <div key={skill.id} className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                                        <div>
-                                            <h4 className="font-semibold text-gray-900 dark:text-white">{skill.skillName}</h4>
-                                            <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 dark:text-gray-400 font-medium">
-                                                <span className="flex items-center gap-1">
-                                                    <Calendar size={12} />
-                                                    {new Date(skill.date).toLocaleDateString()}
-                                                </span>
-                                                <span className="bg-gray-200 dark:bg-gray-600 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300">
-                                                    Year {skill.year} • Sem {skill.semester}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-lg font-bold text-blue-600 dark:text-blue-400">+{skill.points}</span>
-                                            <span className="text-xs text-gray-400 font-medium">Points</span>
-                                        </div>
-                                    </div>
-                                ))}
+                                     <div key={skill.id} className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                         <div>
+                                             <div className="flex items-center gap-2">
+                                                 <h4 className="font-semibold text-gray-900 dark:text-white">{skill.skillName}</h4>
+                                                 {skill.type === 'external' && (
+                                                     <span className="text-[8px] font-black bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded uppercase tracking-widest border border-blue-200 dark:border-blue-800">Sheet</span>
+                                                 )}
+                                             </div>
+                                             <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 dark:text-gray-400 font-medium">
+                                                 <span className="flex items-center gap-1">
+                                                     <Calendar size={12} />
+                                                     {new Date(skill.date).toLocaleDateString()}
+                                                 </span>
+                                                 <span className="bg-gray-200 dark:bg-gray-600 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300">
+                                                     Year {skill.year} • {skill.semester === 'Verified' ? 'Verified External' : `Sem ${skill.semester}`}
+                                                 </span>
+                                             </div>
+                                         </div>
+                                         <div className="flex flex-col items-end">
+                                             <span className={`text-lg font-bold ${skill.type === 'external' ? 'text-emerald-600 dark:text-emerald-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                                                 +{skill.points}
+                                             </span>
+                                             <span className="text-xs text-gray-400 font-medium">Points</span>
+                                         </div>
+                                     </div>
+                                 ))}
                             </div>
                         )}
                     </div>

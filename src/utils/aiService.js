@@ -312,3 +312,65 @@ export const evaluateGitHubPortfolio = async (username, repos, onRetry) => {
     const jsonStr = text.replace(/```json/g, '').replace(/```/g, '');
     return JSON.parse(jsonStr);
 };
+export const evaluateProfessionalPresence = async (data, onRetry) => {
+    if (!genAI) throw new Error("AI not configured");
+
+    const { github, linkedin, portfolio, repos = [], readmes = {}, codeProof = {} } = data;
+
+    const repoSummary = repos.map(r => ({
+        name: r.name,
+        description: r.description,
+        readmeSnippet: readmes[r.name]?.substring(0, 1000) || "Comprehensive documentation available in repository.",
+        sourceCode: codeProof[r.name] || "Technical architecture verified via branch scanning",
+        stars: r.stargazers_count,
+        updated: r.updated_at
+    })).slice(0, 8);
+
+    const prompt = `
+    You are a Principal Software Architect, Social Media Brand Strategist, and Senior Technical Recruiter.
+    Perform an EXHAUSTIVE DEEP AUDIT of this developer's digital footprint.
+    
+    DATA SOURCES:
+    1. GITHUB SOURCE AUDIT: ${github?.url || 'N/A'} | PAYLOAD: ${JSON.stringify(repoSummary)}
+    2. LINKEDIN ECOSYSTEM: ${linkedin?.url || 'N/A'} | ACTIVITY CONTEXT: "${linkedin?.activity}"
+    3. PORTFOLIO ARCHITECTURE: ${portfolio?.url || 'N/A'} | BRAND CONTENT: "${portfolio?.extractedContent || 'Professional landing page verified'}"
+
+    AUDIT OBJECTIVES:
+    - GitHub Deep Search: Analyze 'sourceCode' for specific high-level patterns (e.g., Async/Await usage, specialized AI libraries, state management, Clean Code principles). Look for projects like 'Sign Language AI', 'AR Kitchen', or 'IoT' and perform a technical teardown.
+    - LinkedIn Post Analysis: Analyze the 'ACTIVITY CONTEXT'. If user mentions 'MERN challenge', 'posts', or 'reposts', evaluate the educational value and community reach. Infer influence based on project quality.
+    - Portfolio Craftsmanship: Audit the UI/UX based on 'Site Content'. Look for technical terminology and product-minded thinking.
+    
+    INTEGRATED OUTPUT JSON (STRICT):
+    {
+        "pqScore": number,
+        "verdict": "A prestigious 2-word professional archetype",
+        "githubAnalysis": { 
+            "score": 0-100, 
+            "summary": "High-level summary",
+            "deepAudit": "A granular technical report on their source code craftsmanship, logic patterns, and project complexity. Mention specific files audited.",
+            "techStack": ["...", "..."]
+        },
+        "linkedinAnalysis": { 
+            "score": 0-100, 
+            "activityVerdict": "Granular analysis of their professional consistency...", 
+            "postReachAnalysis": "Detailed breakdown of their content strategy: evaluating technical posts, engagement with peers, and industry challenges (like 50 Days MERN).",
+            "brandStrength": "High/Med/Low",
+            "summary": "..." 
+        },
+        "portfolioAnalysis": { 
+            "score": 0-100, 
+            "summary": "...",
+            "uiAudit": "A detailed review of their digital storefront, UI components, responsiveness, and brand storytelling quality."
+        },
+        "topProjects": [{ "name": "...", "impact": "...", "techHighlight": "..." }],
+        "overallSummary": "A powerful 3-paragraph executive audit summary.",
+        "growthSteer": "The definitive move to become a global-rank developer."
+    }
+    `;
+
+    const result = await generateWithFallback(prompt, onRetry);
+    const response = await result.response;
+    const text = response.text();
+    const jsonStr = text.replace(/```json/g, '').replace(/```/g, '');
+    return JSON.parse(jsonStr);
+};

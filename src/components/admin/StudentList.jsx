@@ -3,7 +3,7 @@ import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/fire
 import { db } from '../../config/firebase';
 import { useAuth } from "../../contexts/AuthContext";
 import StudentForm from './StudentForm';
-import { Plus, Search, Filter, Trash2, Edit2, GraduationCap, ChevronRight, ArrowLeft, ChevronRight as ChevronIcon, Building2, Code, Globe, Cpu, Zap, Wrench, Hammer, Brain, X, Link as LinkIcon, ExternalLink, BadgeCheck, Book, Target, Sparkles, Loader2, MessageSquare, FolderOpen, Trophy, Github } from 'lucide-react';
+import { Plus, Search, Filter, Trash2, Edit2, GraduationCap, ChevronRight, ArrowLeft, ChevronRight as ChevronIcon, Building2, Code, Globe, Cpu, Zap, Wrench, Hammer, Brain, X, Link as LinkIcon, ExternalLink, BadgeCheck, Book, Target, Sparkles, Loader2, MessageSquare, FolderOpen, Trophy, Github, CheckCircle, Linkedin } from 'lucide-react';
 import { parseNaturalLanguageQuery, isAIConfigured } from '../../utils/aiService';
 import { getDoc } from 'firebase/firestore';
 
@@ -462,7 +462,7 @@ export default function StudentList() {
                                 <div className="w-32 h-32 rounded-3xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white text-5xl font-black shadow-2xl">
                                     {viewingStudent.name[0]}
                                 </div>
-                                {viewingStudent.githubAnalysis && (
+                                {(viewingStudent.professionalAnalysis || viewingStudent.githubAnalysis) && (
                                     <div className="absolute -bottom-2 -right-2 bg-white dark:bg-gray-900 p-2 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-800">
                                         <Trophy size={20} className="text-yellow-500" />
                                     </div>
@@ -477,15 +477,26 @@ export default function StudentList() {
                                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Registration No</p>
                                     <p className="text-sm font-black text-gray-900 dark:text-white">{viewingStudent.regNo}</p>
                                 </div>
-                                {viewingStudent.githubAnalysis && (
-                                    <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 text-left">
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">AI Developer Score</p>
-                                        <div className="flex items-end gap-2">
-                                            <span className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">{viewingStudent.githubAnalysis.score}</span>
-                                            <span className="text-sm font-bold text-gray-400 mb-2">/ 100</span>
-                                        </div>
+                            </div>
+
+                            <div className="w-full space-y-3 mb-8">
+                                <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 text-left">
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                                        {viewingStudent.professionalAnalysis ? 'Integrated PQ Index' : 'AI Developer Score'}
+                                    </p>
+                                    <div className="flex items-end gap-2">
+                                        <span className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                                            {viewingStudent.professionalAnalysis?.pqScore ?? viewingStudent.githubAnalysis?.score}
+                                        </span>
+                                        <span className="text-sm font-bold text-gray-400 mb-2">/ 100</span>
                                     </div>
-                                )}
+                                </div>
+                                <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 text-left">
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Archetype</p>
+                                    <p className="text-sm font-black text-gray-900 dark:text-white truncate">
+                                        {viewingStudent.professionalAnalysis?.verdict ?? viewingStudent.githubAnalysis?.title ?? 'Building Skills'}
+                                    </p>
+                                </div>
                             </div>
 
                             <div className="w-full space-y-3">
@@ -521,9 +532,9 @@ export default function StudentList() {
                         <div className="flex-1 overflow-y-auto p-6 md:p-10 bg-white dark:bg-gray-900">
                             <div className="flex justify-between items-start mb-10">
                                 <div>
-                                    <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-[0.2em] mb-2">Student Profile Details</p>
+                                    <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-[0.2em] mb-2">Integrated Professional Profile</p>
                                     <h3 className="text-3xl font-black text-gray-900 dark:text-white">
-                                        {viewingStudent.githubAnalysis?.title || 'Aspiring Professional'}
+                                        {viewingStudent.professionalAnalysis?.verdict ?? viewingStudent.githubAnalysis?.title ?? 'Aspiring Professional'}
                                     </h3>
                                 </div>
                                 <button 
@@ -537,41 +548,123 @@ export default function StudentList() {
                             <div className="space-y-10">
                                 <section>
                                     <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-                                        <Sparkles size={18} className="text-yellow-500" /> About & Summary
+                                        <Sparkles size={18} className="text-yellow-500" /> Professional Analysis Summary
                                     </h4>
                                     <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-lg bg-gray-50 dark:bg-gray-800/30 p-6 rounded-3xl border border-gray-100 dark:border-gray-800">
-                                        {viewingStudent.githubAnalysis?.summary || viewingStudent.about || viewingStudent.bio || "No summary provided."}
+                                        {viewingStudent.professionalAnalysis?.overallSummary || viewingStudent.githubAnalysis?.summary || viewingStudent.about || viewingStudent.bio || "No summary provided."}
                                     </p>
                                 </section>
 
-                                {viewingStudent.githubAnalysis && (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                        <section>
-                                            <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-                                                <BadgeCheck size={18} className="text-green-500" /> Top Strengths
-                                            </h4>
-                                            <ul className="space-y-3">
-                                                {viewingStudent.githubAnalysis.strengths?.map((s, i) => (
-                                                    <li key={i} className="flex items-start gap-3 text-gray-600 dark:text-gray-400 font-medium">
-                                                        <div className="mt-1 w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
-                                                        {s}
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        </section>
-                                        <section>
-                                            <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-                                                <Book size={18} className="text-blue-500" /> Verified Tech Stack
-                                            </h4>
-                                            <div className="flex flex-wrap gap-2">
-                                                {viewingStudent.githubAnalysis.techStack?.map((tech, i) => (
-                                                    <span key={i} className="px-4 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl text-xs font-bold border border-blue-100 dark:border-blue-800">
-                                                        {tech}
-                                                    </span>
-                                                ))}
+                                {viewingStudent.professionalAnalysis && (
+                                    <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-[2rem] border border-gray-200 dark:border-gray-800 shadow-sm">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Github size={14} className="text-indigo-600" />
+                                                <span className="text-[10px] font-black uppercase text-gray-400">Technical</span>
                                             </div>
-                                        </section>
-                                    </div>
+                                            <p className="text-2xl font-black">{viewingStudent.professionalAnalysis.githubAnalysis?.score || 0}</p>
+                                        </div>
+                                        <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-[2rem] border border-gray-200 dark:border-gray-800 shadow-sm">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Linkedin size={14} className="text-blue-600" />
+                                                <span className="text-[10px] font-black uppercase text-gray-400">LinkedIn</span>
+                                            </div>
+                                            <p className="text-2xl font-black">{viewingStudent.professionalAnalysis.linkedinAnalysis?.score || 0}</p>
+                                        </div>
+                                        <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-[2rem] border border-gray-200 dark:border-gray-800 shadow-sm">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Globe size={14} className="text-purple-600" />
+                                                <span className="text-[10px] font-black uppercase text-gray-400">Portfolio</span>
+                                            </div>
+                                            <p className="text-2xl font-black">{viewingStudent.professionalAnalysis.portfolioAnalysis?.score || 0}</p>
+                                        </div>
+                                    </section>
+                                )}
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <section>
+                                        <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                                            <CheckCircle size={18} className="text-green-500" /> Key Strengths
+                                        </h4>
+                                        <ul className="space-y-3">
+                                            {(viewingStudent.professionalAnalysis?.githubAnalysis?.strengths || viewingStudent.githubAnalysis?.strengths)?.map((s, i) => (
+                                                <li key={i} className="flex items-start gap-3 text-gray-600 dark:text-gray-400 font-medium text-sm">
+                                                    <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
+                                                    {s}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </section>
+                                    <section>
+                                        <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                                            <Book size={18} className="text-blue-500" /> Verified Tech Stack
+                                        </h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {(viewingStudent.professionalAnalysis?.githubAnalysis?.techStack || viewingStudent.githubAnalysis?.techStack)?.map((tech, i) => (
+                                                <span key={i} className="px-4 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl text-xs font-bold border border-blue-100 dark:border-blue-800">
+                                                    {tech}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </section>
+                                </div>
+                                
+                                {viewingStudent.professionalAnalysis?.linkedinAnalysis && (
+                                    <section>
+                                        <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                                            <Linkedin size={18} className="text-blue-600" /> LinkedIn Activity & Reach
+                                        </h4>
+                                        <div className="space-y-4">
+                                            <div className="p-6 bg-blue-50/30 dark:bg-blue-900/10 rounded-3xl border border-blue-100 dark:border-blue-800/30">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <span className="text-[10px] font-black uppercase text-blue-500">Brand Strength</span>
+                                                    <span className="text-xs font-bold px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-lg">
+                                                        {viewingStudent.professionalAnalysis.linkedinAnalysis?.brandStrength || "Building"}
+                                                    </span>
+                                                </div>
+                                                <p className="text-gray-700 dark:text-gray-300 text-sm italic leading-relaxed">
+                                                    "{viewingStudent.professionalAnalysis.linkedinAnalysis?.activityVerdict || "Consistent growth in professional networking detected."}"
+                                                </p>
+                                            </div>
+                                            
+                                            {viewingStudent.professionalAnalysis.linkedinAnalysis?.postReachAnalysis && (
+                                                <div className="p-4 bg-gray-50/50 dark:bg-gray-800/20 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
+                                                    <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                                        <Sparkles size={12} /> Content Strategy Analysis
+                                                    </h5>
+                                                    <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed font-medium">
+                                                        {viewingStudent.professionalAnalysis.linkedinAnalysis.postReachAnalysis}
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </section>
+                                )}
+
+                                {viewingStudent.professionalAnalysis?.githubAnalysis?.deepAudit && (
+                                    <section>
+                                        <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                                            <Code size={18} className="text-indigo-500" /> Deep Technical Audit
+                                        </h4>
+                                        <div className="p-6 bg-indigo-50/30 dark:bg-indigo-900/10 rounded-3xl border border-indigo-100 dark:border-indigo-800/30">
+                                            <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
+                                                {viewingStudent.professionalAnalysis.githubAnalysis.deepAudit}
+                                            </p>
+                                        </div>
+                                    </section>
+                                )}
+
+                                {viewingStudent.professionalAnalysis?.portfolioAnalysis?.uiAudit && (
+                                    <section>
+                                        <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                                            <Globe size={18} className="text-purple-500" /> Portfolio UI/UX Review
+                                        </h4>
+                                        <div className="p-6 bg-purple-50/30 dark:bg-purple-900/10 rounded-3xl border border-purple-100 dark:border-purple-800/30">
+                                            <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed italic">
+                                                {viewingStudent.professionalAnalysis.portfolioAnalysis.uiAudit}
+                                            </p>
+                                        </div>
+                                    </section>
                                 )}
 
                                 {viewingStudent.githubAnalysis?.featuredProjects && (
@@ -620,6 +713,43 @@ export default function StudentList() {
                                         </div>
                                     </section>
                                 )}
+
+                                {/* NEW: Activity Scores (PS Portal & Other Skills) */}
+                                {(viewingStudent.psPortalData || viewingStudent.otherSkillsData) && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-gray-100 dark:border-gray-800">
+                                        {viewingStudent.psPortalData && (
+                                            <section>
+                                                <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                                                    <Target size={18} className="text-red-500" /> PS Portal Scores
+                                                </h4>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    {viewingStudent.psPortalData.map((lvl, idx) => (
+                                                        <div key={idx} className="bg-gray-50 dark:bg-gray-800 p-3 rounded-2xl border border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                                                            <span className="text-xs font-bold text-gray-500">{lvl.label}</span>
+                                                            <span className="text-sm font-black text-red-600 dark:text-red-400">{lvl.points}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </section>
+                                        )}
+
+                                        {viewingStudent.otherSkillsData && (
+                                            <section>
+                                                <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                                                    <Sparkles size={18} className="text-emerald-500" /> External Skill Points
+                                                </h4>
+                                                <div className="space-y-2">
+                                                    {viewingStudent.otherSkillsData.map((skill, idx) => (
+                                                        <div key={idx} className="bg-gray-50 dark:bg-gray-800 p-3 rounded-2xl border border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                                                            <span className="text-xs font-bold text-gray-500 capitalize">{skill.name}</span>
+                                                            <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{skill.points} pts</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </section>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -628,3 +758,4 @@ export default function StudentList() {
         </div>
     );
 }
+

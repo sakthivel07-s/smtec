@@ -36,14 +36,40 @@ export default function Leaderboard() {
                 studentsSnapshot.docs.forEach(doc => {
                     const data = doc.data();
                     if (data.regNo) {
-                        studentMap[data.regNo] = {
+                        const reg = String(data.regNo).trim();
+                        let basePoints = 0;
+                        let initialActivities = 0;
+
+                        // 1.1 Add PS Portal Points
+                        if (data.psPortalData && Array.isArray(data.psPortalData)) {
+                            data.psPortalData.forEach(lvl => {
+                                const pts = Number(lvl.points) || 0;
+                                if (pts > 0) {
+                                    basePoints += pts;
+                                    initialActivities += 1;
+                                }
+                            });
+                        }
+
+                        // 1.2 Add Other Skills Points
+                        if (data.otherSkillsData && Array.isArray(data.otherSkillsData)) {
+                            data.otherSkillsData.forEach(skill => {
+                                const pts = Number(skill.points) || 0;
+                                if (pts > 0) {
+                                    basePoints += pts;
+                                    initialActivities += 1;
+                                }
+                            });
+                        }
+
+                        studentMap[reg] = {
                             id: doc.id,
-                            regNo: data.regNo,
+                            regNo: reg,
                             name: data.name,
                             dept: data.dept || data.department,
                             year: Number(data.year),
-                            points: 0,
-                            activities: 0
+                            points: basePoints,
+                            activities: initialActivities
                         };
                     }
                 });
@@ -52,9 +78,10 @@ export default function Leaderboard() {
                 const skillsSnapshot = await getDocs(collection(db, "student_skills"));
                 skillsSnapshot.docs.forEach(doc => {
                     const data = doc.data();
-                    if (studentMap[data.regNo]) {
-                        studentMap[data.regNo].points += Number(data.points) || 0;
-                        studentMap[data.regNo].activities += 1;
+                    const reg = String(data.regNo).trim();
+                    if (studentMap[reg]) {
+                        studentMap[reg].points += Number(data.points) || 0;
+                        studentMap[reg].activities += 1;
                     }
                 });
 

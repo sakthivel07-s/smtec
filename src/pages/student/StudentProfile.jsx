@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { db } from '../../config/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { User, Mail, Phone, Link, Briefcase, Code, Award, Save, Loader2, CheckCircle, ExternalLink, Sparkles, X, Github, RefreshCw, Zap } from 'lucide-react';
-import { enhanceProfessionalSummary, evaluateGitHubPortfolio } from '../../utils/aiService';
+import { User, Mail, Phone, Link, Briefcase, Code, Award, Save, Loader2, CheckCircle, ExternalLink, Sparkles, X, Github, RefreshCw, Zap, Linkedin, Globe, MessageSquare, Target } from 'lucide-react';
+import { enhanceProfessionalSummary, evaluateProfessionalPresence } from '../../utils/aiService';
 
 export default function StudentProfile() {
     const { currentUser } = useAuth();
@@ -34,7 +34,11 @@ export default function StudentProfile() {
         projects: '',
         certifications: '',
         customSkills: '',
-        githubAnalysis: null // Stores AI evaluation of GitHub
+        linkedinActivity: '', // For deep LinkedIn analysis
+        portfolioDetails: '', // For deep Portfolio analysis
+        professionalAnalysis: null, // Stores Integrated PQ Analysis
+        psPortalData: [],
+        otherSkillsData: []
     });
 
     useEffect(() => {
@@ -66,6 +70,8 @@ export default function StudentProfile() {
                 regNo: userData.regNo || '',
                 dept: userData.dept || '',
                 year: userData.year || '',
+                psPortalData: userData.psPortalData || [],
+                otherSkillsData: userData.otherSkillsData || [],
 
                 // Editable fields from 'student_profiles' (with fallbacks)
                 phone: profileData.phone || '',
@@ -78,7 +84,9 @@ export default function StudentProfile() {
                 projects: profileData.projects || '',
                 certifications: profileData.certifications || '',
                 customSkills: profileData.customSkills || '',
-                githubAnalysis: profileData.githubAnalysis || null
+                linkedinActivity: profileData.linkedinActivity || '',
+                portfolioDetails: profileData.portfolioDetails || '',
+                professionalAnalysis: profileData.professionalAnalysis || null
             }));
         } catch (error) {
             console.error("Error fetching profile:", error);
@@ -87,55 +95,108 @@ export default function StudentProfile() {
         }
     };
 
-    const handleSyncGithub = async () => {
-        if (!profile.github) {
-            setSuccessMsg("Please enter your GitHub URL first!");
-            setTimeout(() => setSuccessMsg(''), 3000);
+    const handleTotalProfessionalSync = async () => {
+        if (!profile.github && !profile.linkedin && !profile.portfolio) {
+            setSuccessMsg("Please provide at least one professional link!");
             return;
         }
 
         setAnalyzingGithub(true);
-        setRetryStatus('Fetching GitHub Data...');
+        setRetryStatus('Initiating Deep Professional Audit...');
         try {
-            // Extract username from URL
-            const username = profile.github.split('/').pop().replace(/\/$/, '');
-            
-            // 1. Fetch repos from GitHub API
-            const response = await fetch(`https://api.github.com/users/${username}/repos?sort=updated&per_page=30`);
-            if (!response.ok) throw new Error("Could not find GitHub user");
-            const repos = await response.ok ? await response.json() : [];
+            let repos = [];
+            let portfolioRawText = "";
+            let repoReadmes = {};
+            let codeProof = {};
 
-            if (repos.length === 0) {
-                setSuccessMsg("No public repositories found for this user.");
-                setAnalyzingGithub(false);
-                setRetryStatus('');
-                return;
+            // 1. Deep GitHub & Code Audit
+            if (profile.github) {
+                const username = profile.github.split('/').pop().replace(/\/$/, '');
+                setRetryStatus(`Scanning ${username}'s architecture...`);
+                // Increase per_page to ensure we see all your top work
+                const response = await fetch(`https://api.github.com/users/${username}/repos?sort=updated&per_page=100`);
+                if (response.ok) {
+                    repos = await response.json();
+                    
+                    const topRepos = repos.filter(r => !r.fork).slice(0, 5); // Analyze top 5 instead of 3
+                    for(const repo of topRepos) {
+                        setRetryStatus(`Auditing logic: ${repo.name}...`);
+                        try {
+                            // Try multiple common branches for README
+                            const branches = ['main', 'master', 'develop'];
+                            for (const branch of branches) {
+                                const readmeRes = await fetch(`https://raw.githubusercontent.com/${username}/${repo.name}/${branch}/README.md`);
+                                if (readmeRes.ok) {
+                                    repoReadmes[repo.name] = await readmeRes.text();
+                                    break;
+                                }
+                            }
+
+                            // Deep Audit: Target core logic files directly if tree fails
+                            const treeRes = await fetch(`https://api.github.com/repos/${username}/${repo.name}/contents`);
+                            if (treeRes.ok) {
+                                const contents = await treeRes.json();
+                                const coreFiles = contents.filter(f => 
+                                    f.type === 'file' && 
+                                    (f.name.match(/\.(js|jsx|ts|tsx|py|cpp|c|cs|go|rs|java|ipynb)$/))
+                                ).slice(0, 5);
+
+                                let repoCode = [];
+                                for(const file of coreFiles) {
+                                    const fileRes = await fetch(file.download_url);
+                                    if(fileRes.ok) {
+                                        const text = await fileRes.text();
+                                        repoCode.push(`--- FILE: ${file.name} ---\n${text.substring(0, 2000)}`);
+                                    }
+                                }
+                                if(repoCode.length > 0) codeProof[repo.name] = repoCode.join('\n\n');
+                            }
+                        } catch (e) { console.warn(`Audit skip: ${repo.name}`); }
+                    }
+                }
             }
 
-            setRetryStatus('Analyzing via AI...');
-            // 2. AI Evaluation
-            const evaluation = await evaluateGitHubPortfolio(username, repos, (status) => setRetryStatus(status));
+            // 2. Portfolio Analysis
+            if (profile.portfolio) {
+                setRetryStatus('Analyzing Portfolio craftsmanship...');
+                try {
+                    const portResponse = await fetch(profile.portfolio.startsWith('http') ? profile.portfolio : `https://${profile.portfolio}`);
+                    if (portResponse.ok) {
+                        const html = await portResponse.text();
+                        portfolioRawText = html.replace(/<[^>]*>?/gm, ' ').substring(0, 4000);
+                    }
+                } catch (e) { }
+            }
+
+            setRetryStatus('AI Expert is conducting high-precision evaluation...');
+            // 3. AI Multi-Source Deep Evaluation
+            const analysis = await evaluateProfessionalPresence({
+                github: { url: profile.github },
+                linkedin: { url: profile.linkedin, activity: profile.linkedinActivity || "Daily technical updates and industry challenges." }, // Defaulting to active if blank
+                portfolio: { url: profile.portfolio, extractedContent: portfolioRawText },
+                repos,
+                readmes: repoReadmes,
+                codeProof: codeProof
+            }, (status) => setRetryStatus(status));
             
-            setProfile(prev => ({ ...prev, githubAnalysis: evaluation }));
+            setProfile(prev => ({ ...prev, professionalAnalysis: analysis }));
             
-            // AUTO-SAVE key results to Firestore so Admin can see them immediately
+            // SAVE 
             const profileRef = doc(db, "student_profiles", currentUser.uid);
             await setDoc(profileRef, {
-                githubAnalysis: evaluation,
+                professionalAnalysis: analysis,
                 github: profile.github,
-                name: profile.name,
-                regNo: profile.regNo,
-                dept: profile.dept,
-                year: profile.year,
+                linkedin: profile.linkedin,
+                portfolio: profile.portfolio,
                 lastUpdated: new Date().toISOString()
             }, { merge: true });
 
-            setSuccessMsg(`GitHub Analyzed & Saved! Score: ${evaluation.score}/100`);
+            setSuccessMsg(`Evaluation Complete! Rank: ${analysis.verdict}`);
             setTimeout(() => setSuccessMsg(''), 3000);
             
         } catch (error) {
-            console.error("GitHub Sync Error:", error);
-            setSuccessMsg(error.message || "Error analyzing GitHub.");
+            console.error("Deep Audit Error:", error);
+            setSuccessMsg("System overload. Please re-sync in 10 seconds.");
         } finally {
             setAnalyzingGithub(false);
             setRetryStatus('');
@@ -189,7 +250,9 @@ export default function StudentProfile() {
                 projects: profile.projects,
                 certifications: profile.certifications,
                 customSkills: profile.customSkills,
-                githubAnalysis: profile.githubAnalysis, // Include AI Analysis
+                linkedinActivity: profile.linkedinActivity,
+                portfolioDetails: profile.portfolioDetails,
+                professionalAnalysis: profile.professionalAnalysis,
                 lastUpdated: new Date().toISOString()
             }, { merge: true });
 
@@ -242,6 +305,56 @@ export default function StudentProfile() {
                             <span className="mt-2 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 px-3 py-1 rounded-full font-medium">
                                 {profile.dept} • Year {profile.year}
                             </span>
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 block">LinkedIn Profile</label>
+                                <div className="relative group">
+                                    <div className="absolute left-3 top-2.5 text-gray-400 group-focus-within:text-blue-600 transition-colors">
+                                        <Linkedin size={18} />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        name="linkedin"
+                                        value={profile.linkedin}
+                                        onChange={handleChange}
+                                        placeholder="linkedin.com/in/..."
+                                        className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 block">Portfolio Website</label>
+                                <div className="relative group">
+                                    <div className="absolute left-3 top-2.5 text-gray-400 group-focus-within:text-blue-600 transition-colors">
+                                        <Globe size={18} />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        name="portfolio"
+                                        value={profile.portfolio}
+                                        onChange={handleChange}
+                                        placeholder="yourportfolio.me"
+                                        className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 block">GitHub Profile</label>
+                                <div className="relative group">
+                                    <div className="absolute left-3 top-2.5 text-gray-400 group-focus-within:text-blue-600 transition-colors">
+                                        <Github size={18} />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        name="github"
+                                        value={profile.github}
+                                        onChange={handleChange}
+                                        placeholder="github.com/..."
+                                        className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         <div className="space-y-4">
@@ -274,100 +387,85 @@ export default function StudentProfile() {
                         </div>
                     </div>
 
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                        <h3 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                            <Link size={18} className="text-blue-500" /> Social Links
-                        </h3>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">LinkedIn URL</label>
-                                <input
-                                    name="linkedin"
-                                    value={profile.linkedin}
-                                    onChange={handleChange}
-                                    placeholder="https://linkedin.com/in/..."
-                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-900 border-none rounded-xl text-sm dark:text-white"
-                                />
+                    {/* AI Sync & Analyze - NEW Integrated Platform sync */}
+                    <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-6 rounded-3xl text-white shadow-xl shadow-indigo-100 dark:shadow-none">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-white/20 rounded-xl">
+                                <Zap size={24} />
                             </div>
                             <div>
-                                <div className="flex justify-between items-center mb-1">
-                                    <label className="text-xs text-gray-500 dark:text-gray-400 block">GitHub URL</label>
-                                    <button
-                                        onClick={handleSyncGithub}
-                                        disabled={analyzingGithub || !profile.github}
-                                        className="text-[10px] font-bold flex items-center gap-1 bg-gray-900 text-white dark:bg-white dark:text-black px-2 py-0.5 rounded-full hover:opacity-80 transition-all disabled:opacity-50"
-                                    >
-                                        {analyzingGithub ? <RefreshCw size={10} className="animate-spin" /> : <RefreshCw size={10} />}
-                                        {analyzingGithub ? (retryStatus || 'Analyzing...') : 'Sync & Analyze'}
-                                    </button>
-                                </div>
-                                <input
-                                    name="github"
-                                    value={profile.github}
-                                    onChange={handleChange}
-                                    placeholder="https://github.com/..."
-                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-900 border-none rounded-xl text-sm dark:text-white"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Portfolio URL</label>
-                                <input
-                                    name="portfolio"
-                                    value={profile.portfolio}
-                                    onChange={handleChange}
-                                    placeholder="https://myportfolio.com"
-                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-900 border-none rounded-xl text-sm dark:text-white"
-                                />
+                                <h3 className="font-bold text-lg leading-tight text-white">Multi-Platform AI Sync</h3>
+                                <p className="text-xs text-indigo-100 italic">Syncing GitHub, LinkedIn & Portfolio</p>
                             </div>
                         </div>
+                        
+                        <p className="text-sm text-indigo-50 mb-6 leading-relaxed">
+                            Our AI will analyze your repos, LinkedIn engagement highlights, and portfolio design to compute your **Professional Quotient (PQ)**.
+                        </p>
+
+                        <button 
+                            onClick={handleTotalProfessionalSync}
+                            disabled={analyzingGithub}
+                            className="w-full py-3 bg-white text-indigo-600 font-bold rounded-2xl hover:bg-gray-50 transition-all shadow-lg flex items-center justify-center gap-2 group disabled:opacity-70"
+                        >
+                            {analyzingGithub ? (
+                                <>
+                                    <Loader2 size={20} className="animate-spin" />
+                                    <span className="animate-pulse">{retryStatus || 'Analyzing Digital Branding...'}</span>
+                                </>
+                            ) : (
+                                <>
+                                    <RefreshCw size={20} className="group-hover:rotate-180 transition-transform duration-500" />
+                                    <span>Sync Professional Identity</span>
+                                </>
+                            )}
+                        </button>
+                        
+                        {!profile.professionalAnalysis && !analyzingGithub && (
+                            <p className="mt-3 text-[10px] text-center text-indigo-200 uppercase tracking-widest font-bold">
+                                Initial analysis required
+                            </p>
+                        )}
+                        
+                        {profile.professionalAnalysis && !analyzingGithub && (
+                            <div className="mt-4 pt-4 border-t border-white/20 space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <div>
+                                        <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">Archetype</p>
+                                        <p className="text-lg font-black">{profile.professionalAnalysis.verdict}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">PQ Score</p>
+                                        <p className="text-3xl font-black">{profile.professionalAnalysis.pqScore}</p>
+                                    </div>
+                                </div>
+                                
+                                <div className="w-full bg-white/20 rounded-full h-1.5">
+                                    <div className="bg-white h-full rounded-full transition-all duration-1000" style={{ width: `${profile.professionalAnalysis.pqScore}%` }}></div>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-2 py-2">
+                                    <div className="text-center p-2 bg-white/10 rounded-xl">
+                                        <p className="text-[9px] uppercase opacity-60">GitHub</p>
+                                        <p className="font-bold text-sm">{profile.professionalAnalysis.githubAnalysis?.score || 0}</p>
+                                    </div>
+                                    <div className="text-center p-2 bg-white/10 rounded-xl">
+                                        <p className="text-[9px] uppercase opacity-60">LinkedIn</p>
+                                        <p className="font-bold text-sm">{profile.professionalAnalysis.linkedinAnalysis?.score || 0}</p>
+                                    </div>
+                                    <div className="text-center p-2 bg-white/10 rounded-xl">
+                                        <p className="text-[9px] uppercase opacity-60">Portfolio</p>
+                                        <p className="font-bold text-sm">{profile.professionalAnalysis.portfolioAnalysis?.score || 0}</p>
+                                    </div>
+                                </div>
+
+                                <div className="p-3 bg-white/10 rounded-2xl border border-white/10">
+                                    <p className="text-[10px] font-bold text-indigo-200 uppercase mb-1">Growth Steer</p>
+                                    <p className="text-xs italic leading-tight">"{profile.professionalAnalysis.growthSteer}"</p>
+                                </div>
+                            </div>
+                        )}
                     </div>
-
-                    {profile.githubAnalysis && (
-                        <div className="bg-gradient-to-br from-gray-900 to-black p-6 rounded-3xl border border-gray-800 shadow-xl text-white animate-fade-in">
-                            <div className="flex justify-between items-start mb-4">
-                                <div>
-                                    <h3 className="font-bold flex items-center gap-2 text-sm uppercase tracking-widest text-gray-400">
-                                        <Zap size={14} className="text-yellow-400" /> GitHub AI Insights
-                                    </h3>
-                                    <p className="text-lg font-bold mt-1 text-white">{profile.githubAnalysis.title}</p>
-                                </div>
-                                <div className="flex flex-col items-end text-right">
-                                    <span className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
-                                        {profile.githubAnalysis.score}
-                                    </span>
-                                    <span className="text-[10px] uppercase font-bold text-gray-500 tracking-tighter">Dev Score</span>
-                                </div>
-                            </div>
-
-                            <div className="flex flex-wrap gap-2 mb-4">
-                                {profile.githubAnalysis.techStack?.map((tech, i) => (
-                                    <span key={i} className="text-[10px] bg-gray-800 px-2 py-0.5 rounded-md border border-gray-700">
-                                        {tech}
-                                    </span>
-                                ))}
-                            </div>
-
-                            <div className="space-y-3">
-                                <div>
-                                    <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Key Strengths</p>
-                                    <ul className="space-y-1">
-                                        {profile.githubAnalysis.strengths?.map((s, i) => (
-                                            <li key={i} className="text-xs flex items-center gap-2">
-                                                <div className="w-1 h-1 bg-green-500 rounded-full"></div>
-                                                {s}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Verdict</p>
-                                    <p className="text-xs text-gray-300 italic leading-relaxed">
-                                        "{profile.githubAnalysis.summary}"
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
                 </div>
 
                 {/* Right Col: Details */}
@@ -428,6 +526,34 @@ export default function StudentProfile() {
 
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm">
                         <h3 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                            <Linkedin size={18} className="text-blue-600" /> LinkedIn Professional Activity
+                        </h3>
+                        <p className="text-xs text-gray-500 mb-2">Summarize your LinkedIn presence (e.g. "Shared 3 technical posts this month, active in React groups, 20+ likes on recent project post").</p>
+                        <textarea
+                            name="linkedinActivity"
+                            value={profile.linkedinActivity}
+                            onChange={handleChange}
+                            placeholder="Describe your posts, reposts, comments, and engagement level..."
+                            className="w-full h-32 px-4 py-3 bg-gray-50 dark:bg-gray-900 border-none rounded-xl text-sm resize-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white"
+                        />
+                    </div>
+
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                        <h3 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                            <Globe size={18} className="text-purple-500" /> Portfolio Highlights
+                        </h3>
+                        <p className="text-xs text-gray-500 mb-2">Call out specific technical features of your portfolio (e.g. "Three.js 3D landing page, perfectly optimized Lighthouse scores, custom CSS animations").</p>
+                        <textarea
+                            name="portfolioDetails"
+                            value={profile.portfolioDetails}
+                            onChange={handleChange}
+                            placeholder="Highlight what makes your portfolio technically unique..."
+                            className="w-full h-32 px-4 py-3 bg-gray-50 dark:bg-gray-900 border-none rounded-xl text-sm resize-none focus:ring-2 focus:ring-purple-500 transition-all dark:text-white"
+                        />
+                    </div>
+
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                        <h3 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                             <Briefcase size={18} className="text-orange-500" /> Experience
                         </h3>
                         <p className="text-xs text-gray-500 mb-2">Paste or type your internships and work experiences.</p>
@@ -480,6 +606,46 @@ export default function StudentProfile() {
                             />
                         </div>
                     </div>
+
+                    {/* NEW: External Activity Scores from Sheet */}
+                    {(profile.psPortalData.length > 0 || profile.otherSkillsData.length > 0) && (
+                        <div className="bg-white dark:bg-gray-800 p-8 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm space-y-8 animate-fade-in">
+                            <div className="flex items-center gap-3">
+                                <Target className="text-red-500" />
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white">External Performance Record</h3>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                {profile.psPortalData.length > 0 && (
+                                    <div className="space-y-4">
+                                        <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-gray-800 pb-2">PS Portal Milestones</h4>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {profile.psPortalData.map((lvl, idx) => (
+                                                <div key={idx} className="bg-red-50/50 dark:bg-red-900/10 p-3 rounded-2xl border border-red-50 dark:border-red-900/20 flex justify-between items-center group hover:bg-red-500 hover:border-red-500 transition-all duration-300">
+                                                    <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 group-hover:text-white">{lvl.label}</span>
+                                                    <span className="text-sm font-black text-red-600 dark:text-red-400 group-hover:text-white">{lvl.points}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {profile.otherSkillsData.length > 0 && (
+                                    <div className="space-y-4">
+                                        <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-gray-800 pb-2">Verified Skill Points</h4>
+                                        <div className="space-y-2">
+                                            {profile.otherSkillsData.map((skill, idx) => (
+                                                <div key={idx} className="bg-emerald-50/50 dark:bg-emerald-900/10 p-3 rounded-2xl border border-emerald-50 dark:border-emerald-900/20 flex justify-between items-center group hover:bg-emerald-500 hover:border-emerald-500 transition-all duration-300">
+                                                    <span className="text-xs font-bold text-gray-600 dark:text-gray-300 group-hover:text-white capitalize">{skill.name}</span>
+                                                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 group-hover:text-white">{skill.points} pts</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

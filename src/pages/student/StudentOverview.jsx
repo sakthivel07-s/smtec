@@ -25,7 +25,47 @@ export default function StudentOverview() {
                         const data = docSnap.data();
                         setStudentData(data);
 
-                        // 2. Fetch Skills Summary if regNo exists
+                        let totalPoints = 0;
+                        let totalActivities = 0;
+                        const skillsList = [];
+
+                        // 2. A. Add PS Portal Points (from User Doc)
+                        if (data.psPortalData && Array.isArray(data.psPortalData)) {
+                            data.psPortalData.forEach(lvl => {
+                                const pts = Number(lvl.points) || 0;
+                                if (pts > 0) {
+                                    totalPoints += pts;
+                                    totalActivities += 1;
+                                    skillsList.push({
+                                        id: `ps-${lvl.label}`,
+                                        skillName: `${lvl.label} (Sheet)`,
+                                        points: pts,
+                                        date: data.updatedAt || new Date().toISOString(),
+                                        isExternal: true
+                                    });
+                                }
+                            });
+                        }
+
+                        // 2. B. Add Other Skills Points (from User Doc)
+                        if (data.otherSkillsData && Array.isArray(data.otherSkillsData)) {
+                            data.otherSkillsData.forEach(skill => {
+                                const pts = Number(skill.points) || 0;
+                                if (pts > 0) {
+                                    totalPoints += pts;
+                                    totalActivities += 1;
+                                    skillsList.push({
+                                        id: `other-${skill.name}`,
+                                        skillName: `${skill.name} (Sheet)`,
+                                        points: pts,
+                                        date: data.updatedAt || new Date().toISOString(),
+                                        isExternal: true
+                                    });
+                                }
+                            });
+                        }
+
+                        // 3. Fetch Manual Skills Summary if regNo exists
                         if (data.regNo) {
                             const skillsRef = collection(db, "student_skills");
                             const regNoStr = String(data.regNo);
@@ -36,24 +76,22 @@ export default function StudentOverview() {
                             const q = query(skillsRef, where("regNo", "in", searchValues));
                             const snapshot = await getDocs(q);
 
-                            let totalPoints = 0;
-                            const skillsList = [];
-
                             snapshot.forEach(doc => {
                                 const skill = doc.data();
                                 totalPoints += Number(skill.points) || 0;
+                                totalActivities += 1;
                                 skillsList.push({ id: doc.id, ...skill });
                             });
-
-                            // Sort by date desc for recent list
-                            skillsList.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-                            setStats({
-                                points: totalPoints,
-                                activities: snapshot.size
-                            });
-                            setRecentSkills(skillsList.slice(0, 3));
                         }
+
+                        // Sort by date desc for recent list
+                        skillsList.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                        setStats({
+                            points: totalPoints,
+                            activities: totalActivities
+                        });
+                        setRecentSkills(skillsList.slice(0, 3));
                     }
                 } catch (error) {
                     console.error("Error fetching dashboard data:", error);
@@ -130,7 +168,14 @@ export default function StudentOverview() {
                         recentSkills.map((skill) => (
                             <div key={skill.id} className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                                 <div>
-                                    <h4 className="font-bold text-gray-900 dark:text-white">{skill.skillName}</h4>
+                                    <div className="flex items-center gap-2">
+                                        <h4 className="font-bold text-gray-900 dark:text-white">{skill.skillName}</h4>
+                                        {skill.isExternal && (
+                                            <span className="text-[10px] font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded uppercase tracking-tighter">
+                                                Sheet
+                                            </span>
+                                        )}
+                                    </div>
                                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-1">{new Date(skill.date).toLocaleDateString()}</p>
                                 </div>
                                 <div className="bg-white dark:bg-gray-700 px-3 py-1 rounded-lg shadow-sm border border-gray-100 dark:border-gray-600 font-bold text-blue-600 dark:text-blue-400 text-sm">

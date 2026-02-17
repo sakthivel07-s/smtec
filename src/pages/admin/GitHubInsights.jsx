@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '../../config/firebase';
 import { collection, getDocs } from 'firebase/firestore';
-import { Github, Trophy, ExternalLink, Search, Zap, Loader2, Code, Star, Calendar, RefreshCw, X, Link as LinkIcon, BadgeCheck, Book, Target, Sparkles, FolderOpen } from 'lucide-react';
+import { Github, Trophy, ExternalLink, Search, Zap, Loader2, Code, Star, Calendar, RefreshCw, X, Link as LinkIcon, BadgeCheck, Book, Target, Sparkles, FolderOpen, Linkedin, Globe, MessageSquare, CheckCircle } from 'lucide-react';
 
 export default function GitHubInsights() {
     const [students, setStudents] = useState([]);
@@ -20,10 +20,14 @@ export default function GitHubInsights() {
             const data = querySnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
-            })).filter(s => s.githubAnalysis); // Only show students who have analyzed their GitHub
+            })).filter(s => s.professionalAnalysis || s.githubAnalysis); 
 
-            // Sort by score descending
-            data.sort((a, b) => (b.githubAnalysis?.score || 0) - (a.githubAnalysis?.score || 0));
+            // Sort by PQ score primarily, fallback to github score
+            data.sort((a, b) => {
+                const scoreA = a.professionalAnalysis?.pqScore ?? a.githubAnalysis?.score ?? 0;
+                const scoreB = b.professionalAnalysis?.pqScore ?? b.githubAnalysis?.score ?? 0;
+                return scoreB - scoreA;
+            });
             setStudents(data);
         } catch (error) {
             console.error("Error fetching github rankings:", error);
@@ -43,11 +47,11 @@ export default function GitHubInsights() {
         <div className="space-y-8 animate-fade-in font-sans">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold flex items-center gap-3 text-gray-900 dark:text-white">
-                        <Github className="text-gray-900 dark:text-white" size={32} />
-                        GitHub AI Insights
+                    <h1 className="text-3xl font-black flex items-center gap-3 text-gray-900 dark:text-white">
+                        <Zap className="text-indigo-600" size={32} />
+                        Professional AI Rankings
                     </h1>
-                    <p className="text-gray-500 mt-1">Global rankings based on repository analysis and developer scores.</p>
+                    <p className="text-gray-500 mt-1">Integrated Skill Index (ISI) based on GitHub, LinkedIn, and Portfolio analysis.</p>
                 </div>
                 
                 <div className="relative w-full md:w-72">
@@ -121,24 +125,34 @@ export default function GitHubInsights() {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div>
-                                                    <p className="font-bold text-gray-900 dark:text-white group-hover:text-blue-600 transition-colors">{s.name}</p>
-                                                    <p className="text-xs text-gray-500">{s.dept || 'N/A'} • {s.regNo}</p>
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold text-gray-900 dark:text-white line-clamp-1">{s.name}</span>
+                                                    <span className="text-[10px] text-gray-500 font-medium uppercase tracking-tighter">
+                                                        {s.dept} • {s.regNo}
+                                                    </span>
+                                                    <span className="text-[9px] text-indigo-500 font-bold">
+                                                        {s.professionalAnalysis ? `PQ Archetype: ${s.professionalAnalysis.verdict}` : s.githubAnalysis?.title}
+                                                    </span>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-wrap gap-1">
-                                                    {s.githubAnalysis?.techStack?.slice(0, 3).map((tech, i) => (
-                                                        <span key={i} className="text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 px-2 py-0.5 rounded">
+                                                    {(s.professionalAnalysis ? s.professionalAnalysis.githubAnalysis?.techStack : s.githubAnalysis?.techStack)?.slice(0, 3).map((tech, i) => (
+                                                        <span key={i} className="text-[9px] font-bold px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-md border border-blue-100 dark:border-blue-800">
                                                             {tech}
                                                         </span>
                                                     ))}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-center">
-                                                <span className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-500">
-                                                    {s.githubAnalysis?.score}
-                                                </span>
+                                                <div className="flex flex-col items-center">
+                                                    <span className="text-lg font-black text-indigo-600 dark:text-indigo-400">
+                                                        {s.professionalAnalysis?.pqScore ?? s.githubAnalysis?.score}
+                                                    </span>
+                                                    <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">
+                                                        {s.professionalAnalysis ? 'PQ Index' : 'DEV SCORE'}
+                                                    </span>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))
@@ -217,15 +231,21 @@ export default function GitHubInsights() {
                             
                             <div className="w-full space-y-3 mb-8">
                                 <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 text-left">
-                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Developer Score</p>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                                        {selectedStudent.professionalAnalysis ? 'Integrated PQ Index' : 'Developer Score'}
+                                    </p>
                                     <div className="flex items-end gap-2">
-                                        <span className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">{selectedStudent.githubAnalysis?.score}</span>
+                                        <span className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
+                                            {selectedStudent.professionalAnalysis?.pqScore ?? selectedStudent.githubAnalysis?.score}
+                                        </span>
                                         <span className="text-sm font-bold text-gray-400 mb-2">/ 100</span>
                                     </div>
                                 </div>
                                 <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 text-left">
-                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Rank Status</p>
-                                    <p className="text-sm font-black text-gray-900 dark:text-white">#{students.findIndex(s => s.id === selectedStudent.id) + 1} Globally</p>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Archetype</p>
+                                    <p className="text-sm font-black text-gray-900 dark:text-white truncate">
+                                        {selectedStudent.professionalAnalysis?.verdict ?? selectedStudent.githubAnalysis?.title ?? 'Not Analyzed'}
+                                    </p>
                                 </div>
                             </div>
 
@@ -262,8 +282,10 @@ export default function GitHubInsights() {
                         <div className="flex-1 overflow-y-auto p-6 md:p-10 bg-white dark:bg-gray-900">
                             <div className="flex justify-between items-start mb-10">
                                 <div>
-                                    <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-[0.2em] mb-2">AI Profiling Verdict</p>
-                                    <h3 className="text-3xl font-black text-gray-900 dark:text-white italic">"{selectedStudent.githubAnalysis?.title}"</h3>
+                                    <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-[0.2em] mb-2">Integrated Professional Profile</p>
+                                    <h3 className="text-3xl font-black text-gray-900 dark:text-white italic">
+                                        "{selectedStudent.professionalAnalysis?.verdict ?? selectedStudent.githubAnalysis?.title}"
+                                    </h3>
                                 </div>
                                 <button 
                                     onClick={() => setIsModalOpen(false)}
@@ -276,22 +298,65 @@ export default function GitHubInsights() {
                             <div className="space-y-10">
                                 <section>
                                     <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-                                        <Sparkles size={18} className="text-yellow-500" /> AI Professional Summary
+                                        <Sparkles size={18} className="text-yellow-500" /> Executive Analysis Summary
                                     </h4>
                                     <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-lg bg-gray-50 dark:bg-gray-800/30 p-6 rounded-3xl border border-gray-100 dark:border-gray-800">
-                                        {selectedStudent.githubAnalysis?.summary || selectedStudent.about || "This student has not yet provided a detailed professional summary."}
+                                        {selectedStudent.professionalAnalysis?.overallSummary || selectedStudent.githubAnalysis?.summary || selectedStudent.about}
                                     </p>
                                 </section>
+
+                                {selectedStudent.professionalAnalysis && (
+                                    <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-[2rem] border border-gray-200 dark:border-gray-800 shadow-sm">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Github size={14} className="text-indigo-600" />
+                                                <span className="text-[10px] font-black uppercase text-gray-400">Technical Depth</span>
+                                            </div>
+                                            <div className="flex items-end gap-2">
+                                                <p className="text-2xl font-black">{selectedStudent.professionalAnalysis.githubAnalysis?.score || 0}</p>
+                                                <div className="flex-1 bg-gray-200 dark:bg-gray-700 h-1 mb-2 rounded-full overflow-hidden">
+                                                    <div className="bg-indigo-600 h-full" style={{ width: `${selectedStudent.professionalAnalysis.githubAnalysis?.score || 0}%` }}></div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-[2rem] border border-gray-200 dark:border-gray-800 shadow-sm">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Linkedin size={14} className="text-blue-600" />
+                                                <span className="text-[10px] font-black uppercase text-gray-400">Industry Impact</span>
+                                            </div>
+                                            <div className="flex items-end gap-2">
+                                                <p className="text-2xl font-black">{selectedStudent.professionalAnalysis.linkedinAnalysis?.score || 0}</p>
+                                                <div className="flex-1 bg-gray-200 dark:bg-gray-700 h-1 mb-2 rounded-full overflow-hidden">
+                                                    <div className="bg-blue-600 h-full" style={{ width: `${selectedStudent.professionalAnalysis.linkedinAnalysis?.score || 0}%` }}></div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-[2rem] border border-gray-200 dark:border-gray-800 shadow-sm">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Globe size={14} className="text-purple-600" />
+                                                <span className="text-[10px] font-black uppercase text-gray-400">Portfolio Brand</span>
+                                            </div>
+                                            <div className="flex items-end gap-2">
+                                                <p className="text-2xl font-black">{selectedStudent.professionalAnalysis.portfolioAnalysis?.score || 0}</p>
+                                                <div className="flex-1 bg-gray-200 dark:bg-gray-700 h-1 mb-2 rounded-full overflow-hidden">
+                                                    <div className="bg-purple-600 h-full" style={{ width: `${selectedStudent.professionalAnalysis.portfolioAnalysis?.score || 0}%` }}></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </section>
+                                )}
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <section>
                                         <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-                                            <BadgeCheck size={18} className="text-green-500" /> Key Strengths
+                                            <CheckCircle size={18} className="text-green-500" /> Top Strengths
                                         </h4>
                                         <ul className="space-y-3">
-                                            {selectedStudent.githubAnalysis?.strengths?.map((s, i) => (
-                                                <li key={i} className="flex items-start gap-3 text-gray-600 dark:text-gray-400 font-medium">
-                                                    <div className="mt-1 w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
+                                            {(selectedStudent.professionalAnalysis?.githubAnalysis?.strengths || selectedStudent.githubAnalysis?.strengths)?.map((s, i) => (
+                                                <li key={i} className="flex items-start gap-3 text-gray-600 dark:text-gray-400 font-medium text-sm">
+                                                    <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
                                                     {s}
                                                 </li>
                                             ))}
@@ -301,11 +366,32 @@ export default function GitHubInsights() {
                                         <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
                                             <Target size={18} className="text-red-500" /> Areas for Growth
                                         </h4>
-                                        <div className="p-4 bg-red-50/50 dark:bg-red-900/10 rounded-2xl border border-red-100 dark:border-red-900/20">
-                                            <p className="text-red-800 dark:text-red-400 text-sm font-medium">{selectedStudent.githubAnalysis?.weakness || "Keep building and exploring new technologies!"}</p>
+                                        <div className="p-4 bg-red-50/50 dark:bg-red-900/10 rounded-3xl border border-red-100 dark:border-red-900/20">
+                                            <p className="text-red-800 dark:text-red-400 text-sm font-medium">
+                                                {selectedStudent.professionalAnalysis?.growthSteer || selectedStudent.githubAnalysis?.weakness || "Keep building and exploring new technologies!"}
+                                            </p>
                                         </div>
                                     </section>
                                 </div>
+
+                                {selectedStudent.professionalAnalysis?.linkedinAnalysis && (
+                                    <section>
+                                        <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                                            <Linkedin size={18} className="text-blue-600" /> LinkedIn Activity Verdict
+                                        </h4>
+                                        <div className="p-6 bg-blue-50/30 dark:bg-blue-900/10 rounded-3xl border border-blue-100 dark:border-blue-800/30">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <span className="text-[10px] font-black uppercase text-blue-500">Brand Strength</span>
+                                                <span className="text-xs font-bold px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-lg">
+                                                    {selectedStudent.professionalAnalysis.linkedinAnalysis?.brandStrength || "Building"}
+                                                </span>
+                                            </div>
+                                            <p className="text-gray-700 dark:text-gray-300 text-sm italic leading-relaxed">
+                                                "{selectedStudent.professionalAnalysis.linkedinAnalysis?.activityVerdict || "Consistent growth in professional networking detected."}"
+                                            </p>
+                                        </div>
+                                    </section>
+                                )}
 
                                 <section>
                                     <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">

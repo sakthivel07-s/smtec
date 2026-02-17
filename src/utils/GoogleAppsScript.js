@@ -1,11 +1,5 @@
 // ==========================================
-// SMTEC Google Sheets Bridge (Two-Way Sync)
-// ==========================================
-// 1. Paste this code into Extensions > Apps Script
-// 2. Click Deploy > New Deployment
-// 3. Select type: "Web App"
-// 4. Set "Who has access" to: "Anyone" (Important!)
-// 5. Click Deploy and copy the "Web App URL"
+// SMTEC Google Sheets Bridge (Multi-Sheet Sync - EXACT MATCH)
 // ==========================================
 
 function doGet(e) {
@@ -21,85 +15,141 @@ function handleRequest(e) {
     lock.tryLock(10000);
 
     try {
-        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0]; // First sheet
+        const ss = SpreadsheetApp.getActiveSpreadsheet();
         const action = e.parameter.action || "read";
+
+        // Mapping dictionary to match user's spreadsheet image
+        const headerMap = {
+            "REG.NO": "regNo",
+            "REG NO": "regNo",
+            "Name of Student": "name",
+            "Name": "name",
+            "Dept": "dept",
+            "PS-Portal Marks": "psPortal",
+            "Other Activities Marks": "otherSkills",
+            "TOTAL": "totalPoints"
+        };
 
         // 1. READ (Pull to Website)
         if (action === "read") {
-            const data = sheet.getDataRange().getValues();
-            if (data.length === 0) return createJSON({ status: "success", data: [] });
+            const sheets = ss.getSheets();
+            let allStudents = [];
 
-            const headers = data[0];
-            const rows = data.slice(1);
+            sheets.forEach(sheet => {
+                const sheetName = sheet.getName();
+                const data = sheet.getDataRange().getValues();
+                const headers = data[0] || [];
+                
+                // Helper to find column index by flexible name
+                const findCol = (terms) => {
+                    return headers.findIndex(h => {
+                        const cleanH = String(h).toLowerCase().replace(/[-_ ]/g, '');
+                        return terms.some(t => cleanH.includes(t.toLowerCase().replace(/[-_ ]/g, '')));
+                    });
+                };
 
-            const jsonData = rows.map(row => {
-                let obj = {};
-                headers.forEach((header, index) => {
-                    obj[header] = row[index];
-                });
-                return obj;
+                const psIndex = findCol(['PSPORTAL', 'PS-PORTAL', 'PS PORTAL']);
+                const otherIndex = findCol(['OtherActivities', 'OtherSkills', 'Other Activities']);
+                const totalIndex = findCol(['TOTAL']);
+                const regNoIndex = findCol(['REGNO', 'REGISTER', 'REG.NO']);
+
+                // Extract Dept and Year from sheet name
+                const nameParts = sheetName.split(/[- ]/);
+                const sheetDept = nameParts[0];
+                const sheetYear = nameParts[1] || "1";
+
+                if (data.length > 1) {
+                    const rows = data.slice(1);
+                    const jsonData = rows.map((row, i) => {
+                        if (!row[regNoIndex]) return null;
+
+                        let obj = {
+                            dept: sheetDept,
+                            year: Number(sheetYear)
+                        };
+                        
+                        // Calculated Math
+                        let calculatedTotal = 0;
+                        
+                        // Sum PS Portal
+                        if (psIndex !== -1 && row[psIndex]) {
+                            const val = String(row[psIndex]);
+                            val.split(',').forEach(p => calculatedTotal += (parseInt(p.trim()) || 0));
+                        }
+                        
+                        // Sum Other Activities
+                        if (otherIndex !== -1 && row[otherIndex]) {
+                            const val = String(row[otherIndex]);
+                            val.split(',').forEach(p => {
+                                if (p.includes('=')) {
+                                    calculatedTotal += (parseInt(p.split('=')[1].trim()) || 0);
+                                } else {
+                                    const v = p.trim().split(/\s+/).pop();
+                                    calculatedTotal += (parseInt(v) || 0);
+                                }
+                            });
+                        }
+
+                        // Write back to sheet if TOTAL column exists
+                        if (totalIndex !== -1 && row[totalIndex] !== calculatedTotal) {
+                            sheet.getRange(i + 2, totalIndex + 1).setValue(calculatedTotal);
+                        }
+
+                        headers.forEach((header, index) => {
+                            if (!header) return;
+                            const dbField = headerMap[header] || header;
+                            obj[dbField] = index === totalIndex ? calculatedTotal : row[index];
+                        });
+
+                        return obj;
+                    }).filter(s => s && s.regNo);
+                    
+                    allStudents = allStudents.concat(jsonData);
+                }
             });
 
-            return createJSON({ status: "success", data: jsonData });
+            return createJSON({ status: "success", data: allStudents });
         }
 
-        // 2. WRITE (Push from Website - Create/Update)
+        // 2. WRITE (Push from Website)
         else if (action === "write") {
             const requestData = JSON.parse(e.postData.contents);
             const students = requestData.students;
 
             if (!students || students.length === 0) return createError("No data");
 
-            // Setup Headers
-            let headers = [];
-            if (sheet.getLastRow() === 0) {
-                // Default headers for new sheet
-                headers = ["regNo", "name", "email", "dept", "year", "cgpa", "skillPoints"];
-                sheet.appendRow(headers);
-            } else {
-                headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+            students.forEach(student => {
+                const dept = student.dept || "Unknown";
+                const year = student.year || "1";
+                const sheetName = `${dept} ${year}`; // Matching "CSE 1" format
+                
+                let sheet = ss.getSheetByName(sheetName);
+                if (!sheet) {
+                    sheet = ss.insertSheet(sheetName);
+                    const defaultHeaders = ["SI.No.", "REG.NO", "Dept", "Name of Student", "PS-Portal Marks", "Other Activities Marks", "TOTAL"];
+                    sheet.appendRow(defaultHeaders);
+                }
 
-                // Check for new columns in the first student object
-                const firstStudent = students[0];
-                const newColumns = [];
-                Object.keys(firstStudent).forEach(key => {
-                    // Ignore internal fields or large objects if any
-                    if (key !== 'id' && key !== 'createdAt' && key !== 'updatedAt' && !headers.includes(key)) {
-                        // For now, let's explicitly only add 'skillPoints' to be safe, 
-                        // or just add any scalar value.
-                        if (key === 'skillPoints') {
-                            newColumns.push(key);
-                        }
-                    }
+                const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+                const regNoIndex = headers.indexOf("REG.NO");
+                
+                // Inverse Mapping for Write
+                const invMap = {};
+                Object.keys(headerMap).forEach(k => invMap[headerMap[k]] = k);
+
+                const rowData = headers.map(header => {
+                    const dbField = headerMap[header] || header;
+                    return student[dbField] !== undefined ? student[dbField] : "";
                 });
 
-                if (newColumns.length > 0) {
-                    // Add new columns to the sheet
-                    const startCol = headers.length + 1;
-                    sheet.getRange(1, startCol, 1, newColumns.length).setValues([newColumns]);
-                    headers = [...headers, ...newColumns]; // Update local headers array
-                }
-            }
-
-            const regNoIndex = headers.indexOf("regNo");
-            if (regNoIndex === -1) return createError("Missing 'regNo' column");
-
-            const existingData = sheet.getDataRange().getValues();
-
-            students.forEach(student => {
+                const data = sheet.getDataRange().getValues();
                 let rowIndex = -1;
-                // Find existing
-                for (let i = 1; i < existingData.length; i++) {
-                    if (String(existingData[i][regNoIndex]) === String(student.regNo)) {
+                for (let i = 1; i < data.length; i++) {
+                    if (String(data[i][regNoIndex]) === String(student.regNo)) {
                         rowIndex = i + 1;
                         break;
                     }
                 }
-
-                const rowData = headers.map(header => {
-                    // Handle skillPoints specifically if needed, or just generic
-                    return student[header] !== undefined ? student[header] : "";
-                });
 
                 if (rowIndex > 0) {
                     sheet.getRange(rowIndex, 1, 1, rowData.length).setValues([rowData]);
@@ -108,28 +158,31 @@ function handleRequest(e) {
                 }
             });
 
-            return createJSON({ status: "success", message: "Synced" });
+            return createJSON({ status: "success", message: "Synced to " + students.length + " records" });
         }
 
-        // 3. DELETE (Delete from Website -> Delete in Sheet)
+        // 3. DELETE
         else if (action === "delete") {
             const regNo = e.parameter.regNo;
-            if (!regNo) return createError("Missing regNo");
+            const sheets = ss.getSheets();
+            let deleted = false;
 
-            const data = sheet.getDataRange().getValues();
-            const headers = data[0];
-            const regNoIndex = headers.indexOf("regNo");
-
-            if (regNoIndex === -1) return createError("Missing 'regNo' column");
-
-            for (let i = 1; i < data.length; i++) {
-                if (String(data[i][regNoIndex]) === String(regNo)) {
-                    sheet.deleteRow(i + 1);
-                    return createJSON({ status: "success", message: "Deleted" });
+            sheets.forEach(sheet => {
+                const data = sheet.getDataRange().getValues();
+                const headers = data[0];
+                const regNoIndex = headers.indexOf("REG.NO") !== -1 ? headers.indexOf("REG.NO") : headers.indexOf("regNo");
+                
+                if (regNoIndex !== -1) {
+                    for (let i = 1; i < data.length; i++) {
+                        if (String(data[i][regNoIndex]) === String(regNo)) {
+                            sheet.deleteRow(i + 1);
+                            deleted = true;
+                        }
+                    }
                 }
-            }
+            });
 
-            return createJSON({ status: "success", message: "Not found, but considered deleted" });
+            return createJSON({ status: "success", message: deleted ? "Deleted" : "Not found" });
         }
 
         return createError("Invalid action");
