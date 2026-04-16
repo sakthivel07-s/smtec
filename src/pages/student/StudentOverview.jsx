@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from "../../contexts/AuthContext";
 import { db } from '../../config/firebase';
 import { doc, getDoc, collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
-import { GraduationCap, Award, List, ArrowRight, Star } from 'lucide-react';
+import { GraduationCap, Award, List, ArrowRight, Star, Zap, Github, Linkedin, Globe, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function StudentOverview() {
@@ -124,7 +124,7 @@ export default function StudentOverview() {
             </div>
 
             {/* Quick Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="bg-blue-600 dark:bg-gray-900 p-6 rounded-3xl border border-blue-500 dark:border-gray-800 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
                     <div>
                         <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-yellow-300 mb-3">
@@ -134,6 +134,51 @@ export default function StudentOverview() {
                         <h3 className="text-4xl font-bold text-white mt-1">{stats.points}</h3>
                     </div>
                 </div>
+
+                {studentData?.professionalAnalysis ? (
+                    <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-6 rounded-3xl border-none shadow-lg shadow-indigo-100 dark:shadow-none flex flex-col justify-between group hover:shadow-xl transition-all cursor-pointer overflow-hidden relative" onClick={() => navigate('/student/profile')}>
+                         <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-120 transition-transform">
+                            <Zap size={80} />
+                        </div>
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-2 mb-3">
+                                <span className="text-[10px] font-black uppercase text-indigo-200 tracking-widest bg-white/10 px-2 py-1 rounded-lg">Professional Quotient</span>
+                                <Sparkles size={12} className="text-yellow-300" />
+                            </div>
+                            <h3 className="text-2xl font-black text-white leading-tight mb-1">{studentData.professionalAnalysis.verdict}</h3>
+                            <div className="flex items-end gap-2">
+                                <span className="text-4xl font-black text-white">{studentData.professionalAnalysis.pqScore}</span>
+                                <span className="text-indigo-200 font-bold mb-1">/100</span>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-4 mt-4 relative z-10">
+                            <div className="flex items-center gap-1.5 bg-white/10 px-2 py-1 rounded-lg">
+                                <Github size={12} className="text-white" />
+                                <span className="text-xs font-bold text-white">{studentData.professionalAnalysis.githubAnalysis?.score || 0}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 bg-white/10 px-2 py-1 rounded-lg">
+                                <Linkedin size={12} className="text-white" />
+                                <span className="text-xs font-bold text-white">{studentData.professionalAnalysis.linkedinAnalysis?.score || 0}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 bg-white/10 px-2 py-1 rounded-lg">
+                                <Globe size={12} className="text-white" />
+                                <span className="text-xs font-bold text-white">{studentData.professionalAnalysis.portfolioAnalysis?.score || 0}</span>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm flex items-center justify-between group hover:shadow-md transition-all cursor-pointer" onClick={() => navigate('/student/profile')}>
+                        <div>
+                            <p className="text-gray-500 dark:text-gray-400 text-sm font-medium uppercase tracking-wide">Digital Profile</p>
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mt-2">Sync Identity</h3>
+                            <p className="text-xs text-blue-500 font-bold mt-1">Connect GitHub & LinkedIn →</p>
+                        </div>
+                        <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center text-blue-600 dark:text-blue-400">
+                            <Zap size={32} />
+                        </div>
+                    </div>
+                )}
 
                 <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
                     <div>

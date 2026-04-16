@@ -3,7 +3,7 @@ import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/fire
 import { db } from '../../config/firebase';
 import { useAuth } from "../../contexts/AuthContext";
 import StudentForm from './StudentForm';
-import { Plus, Search, Filter, Trash2, Edit2, GraduationCap, ChevronRight, ArrowLeft, ChevronRight as ChevronIcon, Building2, Code, Globe, Cpu, Zap, Wrench, Hammer, Brain, X, Link as LinkIcon, ExternalLink, BadgeCheck, Book, Target, Sparkles, Loader2, MessageSquare, FolderOpen, Trophy, Github, CheckCircle, Linkedin } from 'lucide-react';
+import { Plus, Search, Filter, Trash2, Edit2, GraduationCap, ChevronRight, ArrowLeft, ChevronRight as ChevronIcon, Building2, Code, Globe, Cpu, Zap, Wrench, Hammer, Brain, X, Link as LinkIcon, ExternalLink, BadgeCheck, Book, Target, Sparkles, Loader2, MessageSquare, FolderOpen, Trophy, Github, CheckCircle, Linkedin, Link, RefreshCw } from 'lucide-react';
 import { parseNaturalLanguageQuery, isAIConfigured } from '../../utils/aiService';
 import { getDoc } from 'firebase/firestore';
 
@@ -647,7 +647,30 @@ export default function StudentList() {
                                             <Code size={18} className="text-indigo-500" /> Deep Technical Audit
                                         </h4>
                                         <div className="p-6 bg-indigo-50/30 dark:bg-indigo-900/10 rounded-3xl border border-indigo-100 dark:border-indigo-800/30">
-                                            <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
+                                            {viewingStudent.professionalAnalysis?.githubAnalysis?.technicalAudit && (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                                                    {[
+                                                        { label: 'Code Format', value: viewingStudent.professionalAnalysis.githubAnalysis.technicalAudit.codeFormat, icon: <Code size={12} /> },
+                                                        { label: 'Structure', value: viewingStudent.professionalAnalysis.githubAnalysis.technicalAudit.structure, icon: <LinkIcon size={12} /> },
+                                                        { label: 'AI Detection', value: viewingStudent.professionalAnalysis.githubAnalysis.technicalAudit.aiDetection, icon: <Sparkles size={12} /> },
+                                                        { label: 'Clean Code', value: viewingStudent.professionalAnalysis.githubAnalysis.technicalAudit.cleanCode, icon: <CheckCircle size={12} /> },
+                                                        { label: 'Reusability', value: viewingStudent.professionalAnalysis.githubAnalysis.technicalAudit.reusability, icon: <RefreshCw size={12} /> }
+                                                    ].map((item, i) => (
+                                                        <div key={i} className="flex items-start gap-2 p-3 bg-white/50 dark:bg-gray-800/50 rounded-2xl border border-indigo-100/50 dark:border-indigo-800/20">
+                                                            <div className="mt-1 text-indigo-500">{item.icon}</div>
+                                                            <div>
+                                                                <p className="text-[9px] font-black text-indigo-400 uppercase tracking-tighter">{item.label}</p>
+                                                                <p className="text-xs font-medium text-gray-700 dark:text-gray-300 leading-tight">{item.value}</p>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <span className="text-[10px] font-black uppercase text-indigo-500">Architecture Report</span>
+                                            </div>
+                                            <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed whitespace-pre-wrap font-mono bg-white/40 dark:bg-black/20 p-4 rounded-2xl border border-indigo-50/50 dark:border-indigo-900/10">
                                                 {viewingStudent.professionalAnalysis.githubAnalysis.deepAudit}
                                             </p>
                                         </div>

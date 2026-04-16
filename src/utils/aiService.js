@@ -336,35 +336,46 @@ export const evaluateProfessionalPresence = async (data, onRetry) => {
     3. PORTFOLIO ARCHITECTURE: ${portfolio?.url || 'N/A'} | BRAND CONTENT: "${portfolio?.extractedContent || 'Professional landing page verified'}"
 
     AUDIT OBJECTIVES:
-    - GitHub Deep Search: Analyze 'sourceCode' for specific high-level patterns (e.g., Async/Await usage, specialized AI libraries, state management, Clean Code principles). Look for projects like 'Sign Language AI', 'AR Kitchen', or 'IoT' and perform a technical teardown.
-    - LinkedIn Post Analysis: Analyze the 'ACTIVITY CONTEXT'. If user mentions 'MERN challenge', 'posts', or 'reposts', evaluate the educational value and community reach. Infer influence based on project quality.
-    - Portfolio Craftsmanship: Audit the UI/UX based on 'Site Content'. Look for technical terminology and product-minded thinking.
+    - GitHub Deep Code Search: Exhaustively audit 'sourceCode' and 'readmeSnippet'. 
+        * Evaluate Code Format: Check for consistent indentation, naming conventions (camelCase vs snake_case), and overall readability.
+        * Analyze Project Structure: Is the logic properly separated? Are directories organized logically?
+        * Detection of AI-Generated Code: Look for hallmarks of rote AI output (generic comments, extremely nested and repetitive patterns, or "perfectly generic" variable names) versus human-crafted idiosyncratic logic.
+        * Clean Code & Reusability: Check for DRY (Don't Repeat Yourself) compliance, modularity of components, and refactoring potential.
+    - LinkedIn Post Analysis: Analyze the 'ACTIVITY CONTEXT'. Evaluate the technical depth of shared content and professional consistency.
+    - Portfolio Craftsmanship: Audit the UI/UX based on brand storytelling and technical presentation.
     
     INTEGRATED OUTPUT JSON (STRICT):
     {
-        "pqScore": number,
+        "pqScore": number, (0-100)
         "verdict": "A prestigious 2-word professional archetype",
         "githubAnalysis": { 
             "score": 0-100, 
             "summary": "High-level summary",
-            "deepAudit": "A granular technical report on their source code craftsmanship, logic patterns, and project complexity. Mention specific files audited.",
+            "technicalAudit": {
+                "codeFormat": "Analysis of style and consistency",
+                "structure": "Analysis of project organization",
+                "aiDetection": "Likelihood of AI-generated content (High/Medium/Low) and reasoning",
+                "cleanCode": "Evaluation of best practices and DRY principles",
+                "reusability": "Evaluation of modularity and component design"
+            },
+            "deepAudit": "A granular 2-3 paragraph technical report on their craftsmanship and specific logic patterns found in the audited files.",
             "techStack": ["...", "..."]
         },
         "linkedinAnalysis": { 
             "score": 0-100, 
             "activityVerdict": "Granular analysis of their professional consistency...", 
-            "postReachAnalysis": "Detailed breakdown of their content strategy: evaluating technical posts, engagement with peers, and industry challenges (like 50 Days MERN).",
+            "postReachAnalysis": "Detailed breakdown of their content strategy and engagement quality.",
             "brandStrength": "High/Med/Low",
             "summary": "..." 
         },
         "portfolioAnalysis": { 
             "score": 0-100, 
             "summary": "...",
-            "uiAudit": "A detailed review of their digital storefront, UI components, responsiveness, and brand storytelling quality."
+            "uiAudit": "Detailed review of their UI components, responsiveness, and brand storytelling."
         },
         "topProjects": [{ "name": "...", "impact": "...", "techHighlight": "..." }],
-        "overallSummary": "A powerful 3-paragraph executive audit summary.",
-        "growthSteer": "The definitive move to become a global-rank developer."
+        "overallSummary": "A powerful executive audit summary.",
+        "growthSteer": "The definitive move to become a global-rank developer based on the technical gaps identified."
     }
     `;
 

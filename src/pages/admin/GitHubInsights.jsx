@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '../../config/firebase';
 import { collection, getDocs } from 'firebase/firestore';
-import { Github, Trophy, ExternalLink, Search, Zap, Loader2, Code, Star, Calendar, RefreshCw, X, Link as LinkIcon, BadgeCheck, Book, Target, Sparkles, FolderOpen, Linkedin, Globe, MessageSquare, CheckCircle } from 'lucide-react';
+import { Github, Trophy, ExternalLink, Search, Zap, Loader2, Code, Star, Calendar, RefreshCw, X, Link as LinkIcon, Link, BadgeCheck, Book, Target, Sparkles, FolderOpen, Linkedin, Globe, MessageSquare, CheckCircle, Wrench } from 'lucide-react';
 
 export default function GitHubInsights() {
     const [students, setStudents] = useState([]);
@@ -305,6 +305,31 @@ export default function GitHubInsights() {
                                     </p>
                                 </section>
 
+                                {selectedStudent.professionalAnalysis?.githubAnalysis?.technicalAudit && (
+                                    <section>
+                                        <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                                            <Wrench size={18} className="text-indigo-500" /> Deep Technical Audit
+                                        </h4>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                            {[
+                                                { label: 'Code Format', value: selectedStudent.professionalAnalysis.githubAnalysis.technicalAudit.codeFormat, icon: <Code size={12} /> },
+                                                { label: 'Structure', value: selectedStudent.professionalAnalysis.githubAnalysis.technicalAudit.structure, icon: <LinkIcon size={12} /> },
+                                                { label: 'AI Detection', value: selectedStudent.professionalAnalysis.githubAnalysis.technicalAudit.aiDetection, icon: <Sparkles size={12} /> },
+                                                { label: 'Clean Code', value: selectedStudent.professionalAnalysis.githubAnalysis.technicalAudit.cleanCode, icon: <CheckCircle size={12} /> },
+                                                { label: 'Reusability', value: selectedStudent.professionalAnalysis.githubAnalysis.technicalAudit.reusability, icon: <RefreshCw size={12} /> }
+                                            ].map((item, i) => (
+                                                <div key={i} className="flex items-start gap-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-800">
+                                                    <div className="mt-1 text-indigo-500">{item.icon}</div>
+                                                    <div>
+                                                        <p className="text-[9px] font-black text-indigo-400 uppercase tracking-tighter">{item.label}</p>
+                                                        <p className="text-[11px] leading-tight text-gray-700 dark:text-gray-300">{item.value}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </section>
+                                )}
+
                                 {selectedStudent.professionalAnalysis && (
                                     <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-[2rem] border border-gray-200 dark:border-gray-800 shadow-sm">
@@ -405,6 +430,19 @@ export default function GitHubInsights() {
                                         ))}
                                     </div>
                                 </section>
+
+                                {selectedStudent.professionalAnalysis?.githubAnalysis?.deepAudit && (
+                                    <section>
+                                        <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                                            <Code size={18} className="text-indigo-500" /> Architecture Audit Report
+                                        </h4>
+                                        <div className="p-6 bg-indigo-50/20 dark:bg-indigo-900/10 rounded-3xl border border-indigo-100 dark:border-indigo-800/30">
+                                            <p className="text-indigo-900 dark:text-indigo-300 text-sm leading-relaxed whitespace-pre-wrap font-mono">
+                                                {selectedStudent.professionalAnalysis.githubAnalysis.deepAudit}
+                                            </p>
+                                        </div>
+                                    </section>
+                                )}
 
                                 {selectedStudent.githubAnalysis?.featuredProjects && (
                                     <section>

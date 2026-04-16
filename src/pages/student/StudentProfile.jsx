@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { db } from '../../config/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { User, Mail, Phone, Link, Briefcase, Code, Award, Save, Loader2, CheckCircle, ExternalLink, Sparkles, X, Github, RefreshCw, Zap, Linkedin, Globe, MessageSquare, Target } from 'lucide-react';
+import { User, Mail, Phone, Link, Briefcase, Code, Award, Save, Loader2, CheckCircle, ExternalLink, Sparkles, X, Github, RefreshCw, Zap, Linkedin, Globe, MessageSquare, Target, Wrench, Info, Eye, EyeOff } from 'lucide-react';
 import { enhanceProfessionalSummary, evaluateProfessionalPresence } from '../../utils/aiService';
 
 export default function StudentProfile() {
     const { currentUser } = useAuth();
+    const [recentSkills, setRecentSkills] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showDeepAudit, setShowDeepAudit] = useState(false);
     const [saving, setSaving] = useState(false);
     const [successMsg, setSuccessMsg] = useState('');
     
@@ -118,40 +120,59 @@ export default function StudentProfile() {
                 if (response.ok) {
                     repos = await response.json();
                     
-                    const topRepos = repos.filter(r => !r.fork).slice(0, 5); // Analyze top 5 instead of 3
+                    const topRepos = repos.filter(r => !r.fork).slice(0, 5);
                     for(const repo of topRepos) {
                         setRetryStatus(`Auditing logic: ${repo.name}...`);
                         try {
-                            // Try multiple common branches for README
-                            const branches = ['main', 'master', 'develop'];
-                            for (const branch of branches) {
-                                const readmeRes = await fetch(`https://raw.githubusercontent.com/${username}/${repo.name}/${branch}/README.md`);
-                                if (readmeRes.ok) {
-                                    repoReadmes[repo.name] = await readmeRes.text();
-                                    break;
+                            // 1.1 Use official GitHub README API to find the file automatically (removes 404 noise)
+                            const readmeRes = await fetch(`https://api.github.com/repos/${username}/${repo.name}/readme`);
+                            if (readmeRes.ok) {
+                                const readmeData = await readmeRes.json();
+                                if (readmeData.download_url) {
+                                    const rawRes = await fetch(readmeData.download_url);
+                                    if (rawRes.ok) repoReadmes[repo.name] = await rawRes.text();
                                 }
                             }
 
-                            // Deep Audit: Target core logic files directly if tree fails
-                            const treeRes = await fetch(`https://api.github.com/repos/${username}/${repo.name}/contents`);
+                            // 1.2 Enhanced Recursive Code Audit: Scan the entire project tree for meaningful logic
+                            const treeRes = await fetch(`https://api.github.com/repos/${username}/${repo.name}/git/trees/${repo.default_branch}?recursive=1`);
                             if (treeRes.ok) {
-                                const contents = await treeRes.json();
-                                const coreFiles = contents.filter(f => 
-                                    f.type === 'file' && 
-                                    (f.name.match(/\.(js|jsx|ts|tsx|py|cpp|c|cs|go|rs|java|ipynb)$/))
-                                ).slice(0, 5);
+                                const treeData = await treeRes.json();
+                                const allFiles = treeData.tree || [];
+                                
+                                // Prioritize files that contain the most original "soul" of the project across all folders
+                                const coreFiles = allFiles.filter(f => 
+                                    f.type === 'blob' && 
+                                    (f.path.match(/\.(js|jsx|ts|tsx|py|cpp|c|cs|go|rs|java|ipynb|dart|php|kt|swift|rb)$/)) &&
+                                    (!f.path.includes('.min.')) &&
+                                    (!f.path.includes('config')) &&
+                                    (!f.path.includes('node_modules')) &&
+                                    (!f.path.includes('.antigravity'))
+                                ).sort((a, b) => {
+                                    // Give priority to common entry-point names and "core" folders like /lib or /src
+                                    const bName = b.path.toLowerCase();
+                                    const aName = a.path.toLowerCase();
+                                    const priority = ['main.', 'app.', 'index.', 'server.', 'logic.', 'core.', 'lib/', 'src/'];
+                                    const aIdx = priority.findIndex(p => aName.includes(p));
+                                    const bIdx = priority.findIndex(p => bName.includes(p));
+                                    return (aIdx === -1 ? 99 : aIdx) - (bIdx === -1 ? 99 : bIdx);
+                                }).slice(0, 7); // Analyze 7 files instead of 5 for more depth
 
                                 let repoCode = [];
                                 for(const file of coreFiles) {
-                                    const fileRes = await fetch(file.download_url);
+                                    // Fetch raw content via raw.githubusercontent.com for simplicity and breadth
+                                    const fileRes = await fetch(`https://raw.githubusercontent.com/${username}/${repo.name}/${repo.default_branch}/${file.path}`);
                                     if(fileRes.ok) {
                                         const text = await fileRes.text();
-                                        repoCode.push(`--- FILE: ${file.name} ---\n${text.substring(0, 2000)}`);
+                                        // Capture up to 3500 chars for deeper structural analysis
+                                        repoCode.push(`--- PATH: ${file.path} ---\n${text.substring(0, 3500)}`);
                                     }
                                 }
                                 if(repoCode.length > 0) codeProof[repo.name] = repoCode.join('\n\n');
                             }
-                        } catch (e) { console.warn(`Audit skip: ${repo.name}`); }
+                        } catch (e) { 
+                            console.warn(`Audit skip: ${repo.name}`, e); 
+                        }
                     }
                 }
             }
@@ -463,6 +484,49 @@ export default function StudentProfile() {
                                     <p className="text-[10px] font-bold text-indigo-200 uppercase mb-1">Growth Steer</p>
                                     <p className="text-xs italic leading-tight">"{profile.professionalAnalysis.growthSteer}"</p>
                                 </div>
+
+                                {/* Deep Technical Audit Section */}
+                                {profile.professionalAnalysis.githubAnalysis?.technicalAudit && (
+                                    <div className="space-y-3 pt-2">
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {[
+                                                { label: 'Code Format', value: profile.professionalAnalysis.githubAnalysis.technicalAudit.codeFormat, icon: <Code size={12} /> },
+                                                { label: 'Structure', value: profile.professionalAnalysis.githubAnalysis.technicalAudit.structure, icon: <Link size={12} /> },
+                                                { label: 'AI Detection', value: profile.professionalAnalysis.githubAnalysis.technicalAudit.aiDetection, icon: <Sparkles size={12} /> },
+                                                { label: 'Clean Code', value: profile.professionalAnalysis.githubAnalysis.technicalAudit.cleanCode, icon: <CheckCircle size={12} /> },
+                                                { label: 'Reusability', value: profile.professionalAnalysis.githubAnalysis.technicalAudit.reusability, icon: <RefreshCw size={12} /> }
+                                            ].map((item, i) => (
+                                                <div key={i} className="group relative">
+                                                    <div className="flex items-start gap-2 p-2 bg-indigo-900/40 rounded-xl border border-white/5 hover:bg-indigo-800/50 transition-colors">
+                                                        <div className="mt-1 text-indigo-300">{item.icon}</div>
+                                                        <div>
+                                                            <p className="text-[9px] font-bold text-indigo-200 uppercase tracking-tighter">{item.label}</p>
+                                                            <p className="text-[11px] leading-tight text-white/90">{item.value}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); setShowDeepAudit(!showDeepAudit); }}
+                                            className="w-full flex items-center justify-center gap-2 py-2 text-[11px] font-bold uppercase tracking-widest text-indigo-200 hover:text-white transition-colors border-t border-white/10 pt-3 mt-1"
+                                        >
+                                            {showDeepAudit ? <><EyeOff size={14} /> Hide Tech Report</> : <><Eye size={14} /> Full Technical Report</>}
+                                        </button>
+
+                                        {showDeepAudit && (
+                                            <div className="p-4 bg-black/30 rounded-2xl border border-white/5 animate-slide-down">
+                                                <h4 className="text-[10px] font-bold text-indigo-300 uppercase mb-2 flex items-center gap-2">
+                                                    <Wrench size={12} /> Architecture Audit
+                                                </h4>
+                                                <div className="text-xs leading-relaxed text-indigo-50/80 space-y-2 whitespace-pre-wrap font-mono">
+                                                    {profile.professionalAnalysis.githubAnalysis.deepAudit}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
